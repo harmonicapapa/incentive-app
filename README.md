@@ -94,3 +94,7 @@ In the portal, go to **Plan → Backup and reset**:
 - The portal's sign-in cookie is HTTP-only, secure and same-site. Wrong
   passwords are slowed down.
 - No analytics or third-party scripts. The page loads the Inter font from Google Fonts.
+
+## Design branches
+
+`v2-design` holds the experimental gamified design. With branch deploys on, Netlify publishes it at `https://v2-design--lielieapp.netlify.app`. The banking-style version is tagged `v1`.
