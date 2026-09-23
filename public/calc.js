@@ -1,12 +1,15 @@
 /* Reward calculation engine — pure functions, no UI. All money in integer pence. */
 (function (root) {
   const TZ = 'Europe/London';
-  const TASK_IDS = ['morning', 'college', 'room', 'meal'];
+  const TASK_IDS = ['morning', 'college', 'room', 'meal', 'bath'];
+  const WEEKLY_IDS = ['room', 'meal', 'bath'];
+  const isWeekly = (id) => WEEKLY_IDS.includes(id);
   const DEFAULT_TASKS = {
     morning: { label: 'Morning routine', subtitle: 'Medication', valuePence: 300, schedule: 'daily' },
     college: { label: 'College attendance', subtitle: '', valuePence: 500, schedule: 'selected_dates' },
-    room:    { label: 'Room reset', subtitle: 'Once a week', valuePence: 500, schedule: 'weekly_capped', monthlyCap: 4 },
+    room:    { label: 'Tidy room', subtitle: 'Once a week', valuePence: 500, schedule: 'weekly_capped', monthlyCap: 4 },
     meal:    { label: 'Meal preparation', subtitle: 'Once a week', valuePence: 1000, schedule: 'weekly_capped', monthlyCap: 4 },
+    bath:    { label: 'Clean bathroom', subtitle: 'Once a week', valuePence: 1000, schedule: 'weekly_capped', monthlyCap: 4 },
   };
   const LADDER = [
     { key: 70, num: 7, den: 10, bonusPence: 2000 },
@@ -40,11 +43,20 @@
     return { settings: null, months: {}, occ: {}, payments: [], audit: [] };
   }
   function defaultSettings(startDate) {
-    return { version: 1, timezone: TZ, currency: 'GBP', startDate, tasks: JSON.parse(JSON.stringify(DEFAULT_TASKS)), roomDay: 6, mealDay: 7, childName: 'LieLie' };
+    return { version: 1, timezone: TZ, currency: 'GBP', startDate, tasks: JSON.parse(JSON.stringify(DEFAULT_TASKS)), roomDay: 6, mealDay: 7, bathDay: 6, childName: 'LieLie' };
+  }
+  /** Bring settings saved by older versions up to date (new tasks, renamed labels). */
+  function migrateSettings(st) {
+    if (!st || !st.tasks) return st;
+    const out = JSON.parse(JSON.stringify(st));
+    for (const id of TASK_IDS) if (!out.tasks[id]) out.tasks[id] = JSON.parse(JSON.stringify(DEFAULT_TASKS[id]));
+    if (out.tasks.room.label === 'Room reset') out.tasks.room.label = 'Tidy room';
+    if (!out.bathDay) out.bathDay = 6;
+    return out;
   }
   const task = (S, id) => (S.settings && S.settings.tasks && S.settings.tasks[id]) || DEFAULT_TASKS[id];
   const value = (S, id) => task(S, id).valuePence;
-  const occId = (taskId, date) => (taskId === 'room' || taskId === 'meal') ? `${taskId}_W${mondayOf(date)}` : `${taskId}_${date}`;
+  const occId = (taskId, date) => isWeekly(taskId) ? `${taskId}_W${mondayOf(date)}` : `${taskId}_${date}`;
   const planStart = (S) => (S.settings && S.settings.startDate) || '0000-01-01';
   const collegeDates = (S, ym) => ((S.months[ym] && S.months[ym].collegeDates) || []).filter((d) => d >= planStart(S) && monthOf(d) === ym).slice().sort();
 
@@ -123,7 +135,7 @@
       earned += e; possible += p; remaining += r;
     }
     // Weekly capped tasks
-    for (const id of ['room', 'meal']) {
+    for (const id of WEEKLY_IDS) {
       const w = weeklyInfo(S, ym, id);
       const e = w.paid.reduce((s, o) => s + o.valuePence, 0);
       const openSlots = w.slots - w.paid.length;
@@ -188,7 +200,7 @@
     if (today >= planStart(S)) {
       out.push({ taskId: 'morning', occId: occId('morning', today), date: today, status: dayStatus(S, 'morning', today, today), valuePence: value(S, 'morning') });
       if (collegeDates(S, ym).includes(today)) out.push({ taskId: 'college', occId: occId('college', today), date: today, status: dayStatus(S, 'college', today, today), valuePence: value(S, 'college') });
-      for (const id of ['room', 'meal']) {
+      for (const id of WEEKLY_IDS) {
         const w = weeklyInfo(S, ym, id);
         const o = S.occ[occId(id, today)];
         let status;
@@ -196,7 +208,7 @@
         else if (o && o.status === 'excused') status = 'excused';
         else if (w.paid.length >= w.slots) status = 'capped';
         else status = 'scheduled';
-        const preferred = weekday(today) === (id === 'room' ? S.settings && S.settings.roomDay : S.settings && S.settings.mealDay);
+        const preferred = weekday(today) === (S.settings && S.settings[id + 'Day']);
         out.push({ taskId: id, occId: occId(id, today), date: (o && o.localDate) || today, status, valuePence: (o && o.status === 'completed') ? o.valuePence : value(S, id), weekly: true, preferred, doneThisMonth: w.paid.length, slots: w.slots });
       }
     }
@@ -210,7 +222,7 @@
     const o = S.occ[occId(taskId, date)];
     if (o && (o.status === 'completed' || o.status === 'excused')) return false;
     if (taskId === 'college' && !collegeDates(S, monthOf(date)).includes(date)) return false;
-    if (taskId === 'room' || taskId === 'meal') {
+    if (isWeekly(taskId)) {
       const w = weeklyInfo(S, monthOf(date), taskId);
       if (w.paid.length >= w.slots) return false;
     }
@@ -265,7 +277,7 @@
     if (obj.app !== 'earned-ledger' || obj.version !== 1) errs.push('This file is not a backup from this app (version 1).');
     const s = obj.settings;
     if (!s || typeof s !== 'object' || !isDate(s.startDate) || !s.tasks) errs.push('Settings are missing or incomplete.');
-    else for (const id of TASK_IDS) if (!s.tasks[id] || !isInt(s.tasks[id].valuePence) || !isStr(s.tasks[id].label)) errs.push(`Task "${id}" is missing or has an invalid value.`);
+    else for (const id of TASK_IDS.filter((x) => x !== 'bath' || s.tasks.bath)) if (!s.tasks[id] || !isInt(s.tasks[id].valuePence) || !isStr(s.tasks[id].label)) errs.push(`Task "${id}" is missing or has an invalid value.`);
     if (!obj.months || typeof obj.months !== 'object') errs.push('Month plans are missing.');
     else for (const [ym, m] of Object.entries(obj.months)) {
       if (!/^\d{4}-\d{2}$/.test(ym)) errs.push(`Month key "${ym}" is invalid.`);
@@ -283,7 +295,7 @@
   }
 
   const api = {
-    TZ, TASK_IDS, DEFAULT_TASKS, LADDER, todayLondon, addDays, weekday, mondayOf, monthOf, daysInMonth, monthDates, monthStart, monthEnd, shiftMonth,
+    TZ, TASK_IDS, WEEKLY_IDS, isWeekly, migrateSettings, DEFAULT_TASKS, LADDER, todayLondon, addDays, weekday, mondayOf, monthOf, daysInMonth, monthDates, monthStart, monthEnd, shiftMonth,
     emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, bonusFor, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
     validateImport, collegeDates, collegeProgress,
   };

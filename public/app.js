@@ -34,6 +34,7 @@ const ICONS = {
   room: P(['M2 4v16', 'M2 8h18a2 2 0 0 1 2 2v10', 'M2 17h20', 'M6 8v9']),
   meal: P(['M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2', 'M7 2v20', 'M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7']),
   check: P(['M20 6 9 17l-5-5']),
+  bath: P(['M10 4 8 6', 'M17 19v2', 'M2 12h20', 'M7 19v2', 'M9 5 7.621 3.621A2.121 2.121 0 0 0 4 5v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5']),
   pill: P(['m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z', 'm8.5 8.5 7 7']),
   settings: P(['M20 7h-9', 'M14 17H5', '<circle cx="17" cy="17" r="3"/>', '<circle cx="7" cy="7" r="3"/>']),
   home: P(['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']),
@@ -87,6 +88,7 @@ function normalise(state) {
 }
 function applyServerState(state) {
   app.S = normalise(state);
+  app.S.settings = C.migrateSettings(app.S.settings);
   if (app.mode !== 'demo') app.mode = app.S.settings ? 'live' : (ROLE === 'parent' ? 'welcome' : 'notset');
   render();
 }
@@ -169,6 +171,7 @@ function buildDemo() {
       const clampDate = (d) => (d < C.monthStart(m) ? C.monthStart(m) : d > C.monthEnd(m) ? C.monthEnd(m) : d);
       if (clampDate(sat) < t && C.monthOf(clampDate(sat)) === m && rnd() < 0.85) occ('room', clampDate(sat), 'completed');
       if (clampDate(sun) < t && C.monthOf(clampDate(sun)) === m && rnd() < 0.8) occ('meal', clampDate(sun), 'completed');
+      if (clampDate(sat) < t && C.monthOf(clampDate(sat)) === m && rnd() < 0.75) occ('bath', clampDate(sat), 'completed');
     });
   }
   const s = C.monthSummary(S, prev, t);
@@ -413,7 +416,7 @@ function txRow(a, t, clickable) {
 function renderActivity(t) {
   const all = C.activity(app.S);
   const months = Array.from(new Set(all.map((a) => C.monthOf(a.date || (a.at || '').slice(0, 10))))).filter(Boolean).sort().reverse();
-  const cats = [['all', 'All'], ['morning', T('morning').label], ['college', 'College'], ['room', 'Room'], ['meal', 'Meal'], ['payment', 'Payments']];
+  const cats = [['all', 'All'], ['morning', T('morning').label], ['college', 'College'], ['room', 'Tidy room'], ['meal', 'Meal'], ['bath', 'Bathroom'], ['payment', 'Payments']];
   const list = all.filter((a) => (app.actMonth === 'all' || C.monthOf(a.date) === app.actMonth) && (app.actCat === 'all' || (app.actCat === 'payment' ? a.kind === 'payment' : a.taskId === app.actCat)));
   const groups = [];
   for (const a of list) {
@@ -441,6 +444,16 @@ const DAY_LABEL = {
   college: { completed: 'Attended', missed: 'Not attended', excused: 'Excused', scheduled: 'Today', future: 'Upcoming' },
 };
 function badge(ic, status) { return `<i class="bdg ${status}">${icon(ic)}</i>`; }
+function sheetViewWeek(mon) {
+  const S = app.S, t = today();
+  const rows = C.WEEKLY_IDS.map((id) => {
+    const o = S.occ[`${id}_W${mon}`];
+    const status = o ? o.status : mon > t ? 'future' : C.addDays(mon, 6) < t ? 'missed' : 'scheduled';
+    const label = o && o.status === 'completed' ? 'Done ' + shortDate(o.localDate) + (o.completedAt ? ' · ' + timeLondon(o.completedAt) : '') : status === 'scheduled' ? 'Open this week' : status === 'future' ? 'Upcoming' : STATUS_LABEL[status] === 'Not completed' ? 'Not done' : STATUS_LABEL[status];
+    return `<div class="task" style="padding:12px 0">${badge(id, status)}<div class="body"><div class="t">${esc(T(id).label)}</div><div class="s">${esc(label)}</div></div>${o && o.status === 'completed' ? `<span class="v num" style="color:var(--green)">+${moneyShort(o.valuePence)}</span>` : `<span class="v num muted">${moneyShort(T(id).valuePence)}</span>`}</div>`;
+  }).join('');
+  openSheet(`Week of ${dayMonth(mon)}`, rows + `<p class="note">Each weekly task can be done once, any day Monday to Sunday, up to 4 times a month.</p>`);
+}
 function sheetViewDay(date) {
   const S = app.S, t = today(), ym = C.monthOf(date);
   const ms = C.dayStatus(S, 'morning', date, t);
@@ -448,7 +461,7 @@ function sheetViewDay(date) {
   const cs = isCollege ? C.dayStatus(S, 'college', date, t) : null;
   const mo = S.occ[C.occId('morning', date)], co = S.occ[C.occId('college', date)];
   const row = (ic, title, status, labels, occ, extra) => `<div class="task" style="padding:12px 0">${badge(ic, status)}<div class="body"><div class="t">${esc(title)}</div><div class="s">${esc(labels[status] || STATUS_LABEL[status] || status)}${occ && occ.status === 'completed' && occ.completedAt ? ' · ' + esc(timeLondon(occ.completedAt)) : ''}${extra || ''}</div></div>${occ && occ.status === 'completed' ? `<span class="v num" style="color:var(--green)">+${moneyShort(occ.valuePence)}</span>` : ''}</div>`;
-  const weekly = ['room', 'meal'].map((id) => S.occ[`${id}_W${C.mondayOf(date)}`]).filter((o) => o && o.localDate === date && o.status === 'completed');
+  const weekly = C.WEEKLY_IDS.map((id) => S.occ[`${id}_W${C.mondayOf(date)}`]).filter((o) => o && o.localDate === date && o.status === 'completed');
   openSheet(longDate(date), `
     ${row('pill', 'Medication', date > t ? 'future' : ms, DAY_LABEL.pill, mo)}
     ${isCollege ? row('college', 'College', cs, DAY_LABEL.college, co) : `<div class="task" style="padding:12px 0"><i class="bdg future">${icon('college')}</i><div class="body"><div class="t">College</div><div class="s">No college scheduled</div></div></div>`}
@@ -462,43 +475,51 @@ function renderPlan(t) {
   const cd = C.collegeDates(S, ym);
   const start = (S.settings && S.settings.startDate) || first;
   const parent = ROLE === 'parent';
-  let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<div class="dow" aria-hidden="true">${d.slice(0, 1)}</div>`).join('');
-  for (let i = 0; i < lead; i++) cells += `<div></div>`;
-  for (const d of C.monthDates(ym)) {
-    const inPlan = d >= start;
-    const ms = inPlan ? C.dayStatus(S, 'morning', d, t) : null;
-    const cs = inPlan && cd.includes(d) ? C.dayStatus(S, 'college', d, t) : null;
-    const medBadge = ms && ms !== 'future' ? badge('pill', ms) : '<span class="bdg-gap"></span>';
-    const colBadge = cs ? badge('college', cs) : '<span class="bdg-gap"></span>';
-    const marks = medBadge + colBadge;
-    const aria = `${shortDate(d)}${ms && ms !== 'future' ? ': medication ' + (DAY_LABEL.pill[ms] || ms) : ''}${cs ? ', college ' + (DAY_LABEL.college[cs] || cs) : ''}`;
-    const cls = `day ${d === t ? 'today' : ''} ${inPlan ? '' : 'out'}`;
-    cells += inPlan
-      ? `<button type="button" class="${cls}" data-act="${parent ? 'edit-day' : 'view-day'}" data-date="${d}" id="day-${d}" aria-label="${esc(aria)}. ${parent ? 'Edit' : 'Details'}"><span class="dnum">${Number(d.slice(8))}</span><span class="marks">${marks}</span></button>`
-      : `<div class="${cls}" aria-hidden="true"><span class="dnum">${Number(d.slice(8))}</span></div>`;
-  }
-  const medDays = C.monthDates(ym).filter((d) => d >= start && d <= t && C.dayStatus(S, 'morning', d, t) !== 'excused' && !(d === t && C.dayStatus(S, 'morning', d, t) === 'scheduled'));
-  const medDone = medDays.filter((d) => C.dayStatus(S, 'morning', d, t) === 'completed').length;
   const weeks = C.planWeeks(S, ym);
   const wstat = (id, mon) => {
     const o = S.occ[`${id}_W${mon}`];
     const sunday = C.addDays(mon, 6);
-    if (o && C.monthOf(o.localDate) !== ym) return { s: 'other', label: 'Counted in ' + fmtD(o.localDate, { month: 'short' }) };
-    if (o) return { s: o.status, label: STATUS_LABEL[o.status] };
+    if (o && C.monthOf(o.localDate) !== ym) return { s: o.status === 'completed' ? 'completed' : 'future', label: (o.status === 'completed' ? 'Done' : STATUS_LABEL[o.status]) + ', counted in ' + fmtD(o.localDate, { month: 'long' }) };
+    if (o) return { s: o.status, label: o.status === 'completed' ? 'Done ' + shortDate(o.localDate) : STATUS_LABEL[o.status] };
     if (mon > t) return { s: 'future', label: 'Upcoming' };
-    if (sunday < t) return { s: 'missed', label: 'Not completed' };
-    return { s: 'scheduled', label: 'Open' };
+    if (sunday < t) return { s: 'missed', label: 'Not done' };
+    return { s: 'scheduled', label: 'Open this week' };
   };
+  let cells = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => `<div class="dow" aria-hidden="true">${d.slice(0, 1)}</div>`).join('') + `<div class="dow" aria-hidden="true" title="Weekly tasks">Wk</div>`;
+  for (let mon = C.mondayOf(first); mon <= C.monthEnd(ym); mon = C.addDays(mon, 7)) {
+    for (let i = 0; i < 7; i++) {
+      const d = C.addDays(mon, i);
+      if (C.monthOf(d) !== ym) { cells += `<div></div>`; continue; }
+      const inPlan = d >= start;
+      const ms = inPlan ? C.dayStatus(S, 'morning', d, t) : null;
+      const cs = inPlan && cd.includes(d) ? C.dayStatus(S, 'college', d, t) : null;
+      const medBadge = ms && ms !== 'future' ? badge('pill', ms) : '<span class="bdg-gap"></span>';
+      const colBadge = cs ? badge('college', cs) : '<span class="bdg-gap"></span>';
+      const aria = `${shortDate(d)}${ms && ms !== 'future' ? ': medication ' + (DAY_LABEL.pill[ms] || ms) : ''}${cs ? ', college ' + (DAY_LABEL.college[cs] || cs) : ''}`;
+      const cls = `day ${d === t ? 'today' : ''} ${inPlan ? '' : 'out'}`;
+      cells += inPlan
+        ? `<button type="button" class="${cls}" data-act="${parent ? 'edit-day' : 'view-day'}" data-date="${d}" id="day-${d}" aria-label="${esc(aria)}. ${parent ? 'Edit' : 'Details'}"><span class="dnum">${Number(d.slice(8))}</span><span class="marks">${medBadge}${colBadge}</span></button>`
+        : `<div class="${cls}" aria-hidden="true"><span class="dnum">${Number(d.slice(8))}</span></div>`;
+    }
+    if (weeks.includes(mon)) {
+      const st = C.WEEKLY_IDS.map((id) => [id, wstat(id, mon)]);
+      const aria = `Week of ${dayMonth(mon)}: ` + st.map(([id, w]) => `${T(id).label} ${w.label}`).join(', ');
+      cells += `<button type="button" class="wkcell" data-act="${parent ? 'edit-week' : 'view-week'}" data-mon="${mon}" id="wkc-${mon}" aria-label="${esc(aria)}. ${parent ? 'Edit' : 'Details'}">${st.map(([id, w]) => badge(id, w.s)).join('')}</button>`;
+    } else cells += `<div></div>`;
+  }
+  const medDays = C.monthDates(ym).filter((d) => d >= start && d <= t && C.dayStatus(S, 'morning', d, t) !== 'excused' && !(d === t && C.dayStatus(S, 'morning', d, t) === 'scheduled'));
+  const medDone = medDays.filter((d) => C.dayStatus(S, 'morning', d, t) === 'completed').length;
   const wkRow = (mon) => {
-    const a = C.addDays(mon, 0) < first ? first : mon, b = C.addDays(mon, 6) > C.monthEnd(ym) ? C.monthEnd(ym) : C.addDays(mon, 6);
-    const r = wstat('room', mon), m = wstat('meal', mon);
-    const inner = `<span>${esc(dayMonth(a))} – ${esc(dayMonth(b))}</span><span class="wstat" title="Room reset"><i class="m ${r.s === 'other' ? 'future' : r.s}"></i>Room</span><span class="wstat" title="Meal preparation"><i class="m ${m.s === 'other' ? 'future' : m.s}"></i>Meal</span>`;
-    return parent ? `<button type="button" class="wk" data-act="edit-week" data-mon="${mon}" id="wk-${mon}" aria-label="Week of ${esc(dayMonth(a))}: room reset ${esc(r.label)}, meal preparation ${esc(m.label)}. Edit">${inner}</button>` : `<div class="wk" aria-label="Week of ${esc(dayMonth(a))}: room reset ${esc(r.label)}, meal preparation ${esc(m.label)}">${inner}</div>`;
+    const a = mon < first ? first : mon, b = C.addDays(mon, 6) > C.monthEnd(ym) ? C.monthEnd(ym) : C.addDays(mon, 6);
+    const st = C.WEEKLY_IDS.map((id) => [id, wstat(id, mon)]);
+    const inner = `<span>${esc(dayMonth(a))} – ${esc(dayMonth(b))}</span><span class="wbadges">${st.map(([id, w]) => `<span title="${esc(T(id).label + ': ' + w.label)}">${badge(id, w.s)}</span>`).join('')}</span>`;
+    const aria = `Week of ${dayMonth(a)}: ` + st.map(([id, w]) => `${T(id).label} ${w.label}`).join(', ');
+    return `<button type="button" class="wk" data-act="${parent ? 'edit-week' : 'view-week'}" data-mon="${mon}" id="wk-${mon}" aria-label="${esc(aria)}. ${parent ? 'Edit' : 'Details'}">${inner}</button>`;
   };
   const catRows = C.TASK_IDS.map((id) => {
     const b = sum.byTask[id];
     const pct = b.possible ? Math.min(100, (b.earned / b.possible) * 100) : 0;
-    const extra = id === 'room' || id === 'meal' ? ` · ${b.completed} of ${b.total}` : id === 'college' ? ` · ${b.completed} of ${b.total} days` : '';
+    const extra = C.isWeekly(id) ? ` · ${b.completed} of ${b.total}` : id === 'college' ? ` · ${b.completed} of ${b.total} days` : '';
     return `<div class="cat"><span class="muted">${icon(id, 'sm')}</span><div><div class="small"><strong>${esc(T(id).label)}</strong></div>${extra ? `<div class="meta">${esc(extra.replace(/^ · /, ''))}</div>` : ''}<div class="mini"><i style="width:${pct}%"></i></div></div><span class="small num">${money(b.earned)} <span class="muted">/ ${money(b.possible)}</span></span></div>`;
   }).join('');
   const rung = (l) => {
@@ -525,13 +546,15 @@ function renderPlan(t) {
       <div class="prog-top"><h3>Calendar</h3><span class="small muted">${parent ? 'Tap a day to edit' : 'Tap a day for details'}</span></div>
       <div class="cal-sum small"><span>${badge('pill', 'completed')} Medication <strong class="num">${medDone}</strong> of ${medDays.length} days</span><span>${badge('college', 'completed')} College <strong class="num">${sum.attended}</strong> of ${sum.counted} days</span></div>
       <div class="cal">${cells}</div>
+      <p class="note" style="margin:8px 0 0">The Wk column shows ${esc(C.WEEKLY_IDS.map((id) => T(id).label.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' and $1'))} for each week.</p>
       <div class="legend">
-        <span>${badge('check', 'completed')}Done</span><span>${badge('check', 'missed')}Not done</span><span>${badge('check', 'excused')}Excused</span><span>${badge('check', 'scheduled')}Today</span><span>${badge('college', 'future')}Upcoming college</span>
+        <span>${badge('check', 'completed')}Done</span><span>${badge('check', 'missed')}Not done</span><span>${badge('check', 'excused')}Excused</span><span>${badge('check', 'scheduled')}Today</span><span>${badge('college', 'future')}Upcoming</span>
       </div>
     </section>
     ${parent ? '' : progressCard(sum, false)}
     <section class="card" aria-label="Weekly tasks">
       <div class="prog-top"><h3>Weekly tasks</h3><span class="small muted">Max 4 each per month</span></div>
+      <div class="cal-sum small">${C.WEEKLY_IDS.map((id) => `<span>${badge(id, 'completed')} ${esc(T(id).label)} <strong class="num">${sum.byTask[id].completed}</strong> of ${sum.byTask[id].total}</span>`).join('')}</div>
       <div class="weeks">${weeks.map(wkRow).join('') || '<div class="empty">No weeks in plan</div>'}</div>
     </section>
     <section class="card" aria-label="By task"><div class="prog-top" style="margin-bottom:4px"><h3>By task</h3></div>${catRows}</section>
@@ -634,7 +657,7 @@ function sheetWeek(mon) {
   const latest = bEnd < t ? bEnd : t;
   const future = a > t;
   const closed = S.months[ym] && S.months[ym].closed;
-  const rows = ['room', 'meal'].map((id) => {
+  const rows = C.WEEKLY_IDS.map((id) => {
     const o = S.occ[`${id}_W${mon}`];
     const other = o && C.monthOf(o.localDate) !== ym;
     const cur = o ? o.status : future ? 'scheduled' : C.addDays(mon, 6) < t ? 'missed' : 'scheduled';
@@ -652,7 +675,7 @@ function sheetWeek(mon) {
       const dEl = body.querySelector('#w-date');
       const date = dEl && dEl.value >= a && dEl.value <= latest ? dEl.value : a;
       try {
-        for (const id of ['room', 'meal']) {
+        for (const id of C.WEEKLY_IDS) {
           const x = body.querySelector(`input[name="${id}"]:checked`); if (!x) continue;
           const o = S.occ[`${id}_W${mon}`];
           if (x.value === 'completed' && !(o && o.status === 'completed')) {
@@ -669,7 +692,7 @@ function sheetWeek(mon) {
 
 function sheetEditOcc(occId) {
   const o = app.S.occ[occId]; if (!o) return;
-  if (o.taskId === 'room' || o.taskId === 'meal') { app.planMonth = C.monthOf(o.localDate); return sheetWeek(C.mondayOf(o.localDate)); }
+  if (C.isWeekly(o.taskId)) { app.planMonth = C.monthOf(o.localDate); return sheetWeek(C.mondayOf(o.localDate)); }
   return sheetDay(o.localDate);
 }
 
@@ -734,10 +757,9 @@ function sheetTasks() {
   const dayOpts = (v) => WEEKDAYS.map((d, i) => `<option value="${i + 1}" ${v === i + 1 ? 'selected' : ''}>${d}</option>`).join('');
   openSheet('Tasks and values', `
     ${C.TASK_IDS.map((id) => `<div class="grid2"><div class="field"><label for="tl-${id}">Label</label><input class="inp" id="tl-${id}" maxlength="40" value="${esc(T(id).label)}"></div><div class="field"><label for="tv-${id}">Value (£)</label><input class="inp num" id="tv-${id}" inputmode="decimal" value="${(T(id).valuePence / 100).toFixed(2)}"></div></div>`).join('')}
-    <p class="note" style="margin-top:-4px">New values apply to tasks not yet completed. Agreed defaults: £3, £5, £5, £10.</p>
+    <p class="note" style="margin-top:-4px">New values apply to tasks not yet completed. Agreed defaults: £3, £5, £5, £10, £10.</p>
     <div class="grid2">
-      <div class="field"><label for="t-roomday">Usual room reset day</label><select class="sel" id="t-roomday">${dayOpts(s.roomDay)}</select></div>
-      <div class="field"><label for="t-mealday">Usual meal day</label><select class="sel" id="t-mealday">${dayOpts(s.mealDay)}</select></div>
+      ${C.WEEKLY_IDS.map((id) => `<div class="field"><label for="t-${id}day">Usual day: ${esc(T(id).label.toLowerCase())}</label><select class="sel" id="t-${id}day">${dayOpts(s[id + 'Day'])}</select></div>`).join('')}
     </div>
     <p class="note" style="margin-top:-4px">Weekly tasks can be completed on any day of the Monday to Sunday week.</p>
     <div class="field"><label for="t-name">Name shown on the read-only view</label><input class="inp" id="t-name" maxlength="40" value="${esc(childName())}"></div>
@@ -753,7 +775,7 @@ function sheetTasks() {
         if (!/^\d+(\.\d{1,2})?$/.test(raw)) return sheetErr(body, `Enter a value in pounds for ${label}.`);
         next.tasks[id] = Object.assign({}, C.DEFAULT_TASKS[id], next.tasks[id], { label, valuePence: Math.round(Number(raw) * 100) });
       }
-      next.roomDay = Number(body.querySelector('#t-roomday').value); next.mealDay = Number(body.querySelector('#t-mealday').value);
+      C.WEEKLY_IDS.forEach((id) => { next[id + 'Day'] = Number(body.querySelector('#t-' + id + 'day').value); });
       const sd = body.querySelector('#t-start').value; if (!/^\d{4}-\d{2}-\d{2}$/.test(sd)) return sheetErr(body, 'Choose a start date.');
       next.startDate = sd;
       next.childName = body.querySelector('#t-name').value.trim() || 'LieLie';
@@ -859,6 +881,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'demo') { app.S = buildDemo(); app.mode = 'demo'; app.tab = 'home'; app.shownEarned = null; return render(); }
   if (act === 'exit-demo') return exitDemo();
   if (act === 'view-day') return sheetViewDay(el.dataset.date);
+  if (act === 'view-week') return sheetViewWeek(el.dataset.mon);
   if (act === 'reload') { app.mode = 'loading'; render(); return load(); }
   if (ROLE !== 'parent') return;
   if (act === 'signout') return signOut();

@@ -22,7 +22,9 @@ const empty = () => ({ settings: null, months: {}, occ: {}, payments: [], audit:
 export async function readState(store) {
   const res = await store.getWithMetadata(STATE_KEY, { type: 'json' });
   if (!res || !res.data) return { state: empty(), etag: null };
-  return { state: Object.assign(empty(), res.data), etag: res.etag || null };
+  const state = Object.assign(empty(), res.data);
+  state.settings = Calc.migrateSettings(state.settings);
+  return { state, etag: res.etag || null };
 }
 
 /** Read-modify-write with an etag check, retried if another write landed in between. */
@@ -106,6 +108,7 @@ function cleanMonth(m) {
 }
 function cleanSettings(s) {
   if (!s || !isDate(s.startDate) || !s.tasks) bad('Invalid settings.');
+  s = Calc.migrateSettings(s);
   const tasks = {};
   for (const id of TASKS) {
     const t = s.tasks[id];
@@ -113,7 +116,7 @@ function cleanSettings(s) {
     tasks[id] = Object.assign({}, Calc.DEFAULT_TASKS[id], { label: t.label.trim(), valuePence: t.valuePence });
   }
   const day = (d, dflt) => (Number.isInteger(d) && d >= 1 && d <= 7 ? d : dflt);
-  return { version: 1, timezone: Calc.TZ, currency: 'GBP', startDate: s.startDate, tasks, roomDay: day(s.roomDay, 6), mealDay: day(s.mealDay, 7), childName: isStr(s.childName, 40) && s.childName.trim() ? s.childName.trim() : 'LieLie' };
+  return { version: 1, timezone: Calc.TZ, currency: 'GBP', startDate: s.startDate, tasks, roomDay: day(s.roomDay, 6), mealDay: day(s.mealDay, 7), bathDay: day(s.bathDay, 6), childName: isStr(s.childName, 40) && s.childName.trim() ? s.childName.trim() : 'LieLie' };
 }
 function cleanPayment(p) {
   if (!p || !isStr(p.id, 60) || !isInt(p.amountPence) || p.amountPence === 0 || !isDate(p.paidDate)) bad('Invalid payment.');
@@ -161,13 +164,13 @@ export function applyOps(state, ops) {
 export function publicState(S) {
   if (!S.settings) return { settings: null, months: {}, occ: {}, payments: [], audit: [] };
   const tasks = {};
-  for (const id of TASKS) { const t = S.settings.tasks[id]; tasks[id] = { label: t.label, valuePence: t.valuePence, schedule: t.schedule, monthlyCap: t.monthlyCap, subtitle: '' }; }
+  for (const id of TASKS) { const t = S.settings.tasks[id] || Calc.DEFAULT_TASKS[id]; tasks[id] = { label: t.label, valuePence: t.valuePence, schedule: t.schedule, monthlyCap: t.monthlyCap, subtitle: '' }; }
   const occ = {};
   for (const [k, o] of Object.entries(S.occ)) occ[k] = { id: o.id, taskId: o.taskId, localDate: o.localDate, status: o.status, valuePence: o.valuePence, completedAt: o.completedAt, updatedAt: o.updatedAt };
   const months = {};
   for (const [k, m] of Object.entries(S.months)) months[k] = { collegeDates: m.collegeDates, closed: !!m.closed, finalBonusPence: m.finalBonusPence };
   return {
-    settings: { startDate: S.settings.startDate, tasks, roomDay: S.settings.roomDay, mealDay: S.settings.mealDay, childName: S.settings.childName || 'LieLie' },
+    settings: { startDate: S.settings.startDate, tasks, roomDay: S.settings.roomDay, mealDay: S.settings.mealDay, bathDay: S.settings.bathDay, childName: S.settings.childName || 'LieLie' },
     months, occ, payments: S.payments.map((p) => ({ id: p.id, amountPence: p.amountPence, paidDate: p.paidDate, paidAt: p.paidAt })), audit: [],
   };
 }

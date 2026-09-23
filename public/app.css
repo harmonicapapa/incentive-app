@@ -133,7 +133,7 @@ select.sel.auto{width:auto}
 /* plan */
 .monthnav{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .monthnav h2{margin:0;font-size:17px;font-weight:600}
-.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr)) 26px;gap:4px;margin-top:10px}
 .cal .dow{font-size:11px;text-align:center;color:var(--ink-3);font-weight:600;padding-bottom:2px}
 .day{aspect-ratio:1/1.08;max-width:100%;border-radius:6px;background:var(--surface-2);border:1px solid transparent;padding:4px;display:flex;flex-direction:column;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-2);min-width:0}
 .day.today{border-color:var(--navy);color:var(--ink);font-weight:600}
@@ -250,3 +250,15 @@ button.day:hover{border-color:var(--ink-3)}
 .legend .bdg{width:16px;height:16px}
 .legend .bdg .ic{width:9px;height:9px}
 @media (max-width:360px){.bdg{width:15px;height:15px}.bdg .ic{width:9px;height:9px}.marks{gap:1px}}
+
+/* weekly column */
+.day{aspect-ratio:auto;min-height:52px}
+.wkcell{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border:1px dashed var(--line);border-radius:6px;background:transparent;padding:2px 0;min-width:0}
+.wkcell:hover{border-color:var(--ink-3)}
+.wkcell .bdg{width:16px;height:16px}
+.wkcell .bdg .ic{width:9px;height:9px}
+.wk{grid-template-columns:1fr auto}
+.wbadges{display:inline-flex;gap:6px}
+.wbadges .bdg{width:22px;height:22px}
+.wbadges .bdg .ic{width:12px;height:12px}
+@media (max-width:360px){.cal{grid-template-columns:repeat(7,minmax(0,1fr)) 20px;gap:3px}.wkcell .bdg{width:14px;height:14px}}
