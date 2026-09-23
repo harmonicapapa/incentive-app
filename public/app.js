@@ -70,7 +70,7 @@ const app = {
   loaded: { settings: false },
   tab: 'home', parent: ROLE === 'parent', planMonth: null, actMonth: 'all', actCat: 'all',
   readOnly: ROLE !== 'parent', loginError: '', busy: false,
-  pending: new Set(), shownEarned: null, lastDay: today(), homeDate: null,
+  pending: new Set(), shownEarned: null, lastDay: today(), homeDate: null, bestCase: false,
 };
 const T = (id) => C.DEFAULT_TASKS[id] && Object.assign({}, C.DEFAULT_TASKS[id], (app.S.settings && app.S.settings.tasks && app.S.settings.tasks[id]) || {});
 const isLive = () => app.mode === 'live';
@@ -326,6 +326,15 @@ function progressCard(sum, compact) {
   const pct = Math.min(100, sum.rate * 100);
   const markers = C.LADDER.map((l) => `<i class="mk ${sum.unlocked.includes(l.key) ? 'on' : ''}" style="left:calc(${l.key}% - 1px)"><span>${l.key}%</span></i>`).join('');
   const rel = shortDateNoDay(sum.releaseDate);
+  const b = sum.best;
+  const canBest = !sum.released && b && b.days > 0;
+  const showBest = canBest && app.bestCase;
+  let bestNote = '';
+  if (showBest) {
+    const gain = b.bonus - sum.bonus;
+    bestNote = `<span class="pill ${b.bonus ? '' : 'neutral'}">${icon(b.bonus ? 'unlock' : 'lock', 'sm')}${b.bonus ? moneyShort(b.bonus) + ' bonus' : 'No bonus'} · ${b.ratePct.toFixed(1)}%</span>
+      <span class="muted">Attending all <strong class="num" style="color:var(--ink)">${b.days}</strong> remaining college day${b.days === 1 ? '' : 's'} makes it ${b.attended} of ${b.counted}. That adds ${moneyShort(b.extraPence)} for the days${gain > 0 ? ` and ${moneyShort(gain)} more bonus` : ''}: <strong class="num" style="color:var(--ink)">${money(b.extraPence + gain)}</strong> extra this month.</span>`;
+  }
   let note;
   const totalDays = sum.counted + sum.remainingDays;
   if (totalDays === 0) note = `<span class="muted">No college days in this month's plan yet.</span>`;
@@ -341,8 +350,9 @@ function progressCard(sum, compact) {
   return `<section class="card" aria-label="Monthly progress">
     <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3><span class="pct num">${sum.counted ? sum.ratePct.toFixed(1) + '%' : '–'}</span></div>
     <div class="note" style="margin-top:2px">${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days so far'}${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}</div>
-    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of college days attended so far. Bonus markers at ${C.LADDER.map((l) => l.key).join(', ')} percent."><div class="fill" style="width:${pct}%"></div>${markers}</div>
-    <div class="prog-note">${note}</div>
+    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of college days attended so far.${showBest ? ` If every remaining day is attended: ${b.ratePct.toFixed(1)} percent.` : ''} Bonus markers at ${C.LADDER.map((l) => l.key).join(', ')} percent.">${showBest ? `<div class="fill proj" style="width:${Math.min(100, b.rate * 100)}%"></div>` : ''}<div class="fill" style="width:${pct}%"></div>${markers}</div>
+    <div class="prog-note">${showBest ? bestNote : note}</div>
+    ${canBest ? `<button type="button" class="switch" role="switch" aria-checked="${showBest}" data-act="best-case" id="best-toggle"><span class="knob" aria-hidden="true"></span>If I attend every day for the rest of the month</button>` : ''}
     ${compact ? '' : `<div class="note" style="margin-top:8px">Bonus levels use college attendance only. Other tasks add to the balance but don't change the percentage.</div>`}
   </section>`;
 }
@@ -913,6 +923,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'exit-demo') return exitDemo();
   if (act === 'demo-role') { ROLE = el.dataset.role; app.parent = ROLE === 'parent'; app.tab = 'home'; app.shownEarned = null; closeSheet(); render(); window.scrollTo(0, 0); return; }
   if (act === 'demo-reset') { app.S = buildDemo(); app.shownEarned = null; render(); toast('Demo data reset'); return; }
+  if (act === 'best-case') { app.bestCase = !app.bestCase; render(); return; }
   if (act === 'view-day') return sheetViewDay(el.dataset.date);
   if (act === 'view-week') return sheetViewWeek(el.dataset.mon);
   if (act === 'reload') { app.mode = 'loading'; render(); return load(); }

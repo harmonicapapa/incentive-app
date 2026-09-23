@@ -12,6 +12,7 @@
     bath:    { label: 'Clean bathroom', subtitle: 'Once a week', valuePence: 1000, schedule: 'weekly_capped', monthlyCap: 4 },
   };
   const LADDER = [
+    { key: 60, num: 3, den: 5, bonusPence: 1000 },
     { key: 70, num: 7, den: 10, bonusPence: 2000 },
     { key: 85, num: 17, den: 20, bonusPence: 3000 },
     { key: 95, num: 19, den: 20, bonusPence: 5000 },
@@ -159,7 +160,7 @@
       // Monthly progress and bonus are based on college attendance to date only.
       rate: cp.rate, ratePct: cp.ratePct, attended: cp.attended, counted: cp.counted, remainingDays: cp.remainingDays,
       bonus, released: cp.released, releaseDate: cp.releaseDate, provisional: !cp.released,
-      next: cp.next, unlocked: cp.unlocked, total: earned + bonus,
+      next: cp.next, unlocked: cp.unlocked, best: cp.best, total: earned + bonus,
     };
   }
 
@@ -190,7 +191,11 @@
       if (days >= 1 && days <= remainingDays) { next = { key: t.key, bonusPence: t.bonusPence, days }; break; }
     }
     const releaseDate = monthStart(shiftMonth(ym, 1));
-    return { attended, counted, remainingDays, rate, ratePct: Math.round(rate * 1000) / 10, bonus, unlocked, next, releaseDate, released: today >= releaseDate };
+    // Best case: every remaining college day this month is attended.
+    const bA = attended + remainingDays, bC = counted + remainingDays;
+    const bRate = bC === 0 ? 0 : bA / bC;
+    const best = { attended: bA, counted: bC, rate: bRate, ratePct: Math.round(bRate * 1000) / 10, bonus: bC === 0 ? 0 : bonusFor(bA, bC), days: remainingDays, extraPence: remainingDays * value(S, 'college') };
+    return { attended, counted, remainingDays, rate, ratePct: Math.round(rate * 1000) / 10, bonus, unlocked, next, best, releaseDate, released: today >= releaseDate };
   }
 
   /** Tasks shown on Home for `today`. */

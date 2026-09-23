@@ -50,9 +50,15 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
 }
 // 16-day month: 15 of 16 (93.75%) is £30; all 16 needed for £50
 { const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 15).forEach(d => done(S, 'college', d)); const s = C.monthSummary(S, '2026-10', '2026-11-01'); eq('15 of 16', s.bonus, 3000); }
+// 60% level and best-case projection
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 6).forEach((d, i) => { if (i !== 1 && i !== 4) done(S, 'college', d); }); // 4 of 6 = 66.7%
+  let s = C.monthSummary(S, '2026-10', cd[6]); eq('66.7 -> 10', s.bonus, 1000); eq('next is 70', s.next && s.next.key, 70);
+  eq('best days', s.best.days, 10); eq('best attended', s.best.attended, 14); eq('best counted', s.best.counted, 16); eq('best pct', s.best.ratePct, 87.5); eq('best bonus 30', s.best.bonus, 3000); eq('best extra', s.best.extraPence, 5000);
+  cd.slice(0, 6).forEach(d => done(S, 'college', d)); s = C.monthSummary(S, '2026-10', cd[6]); eq('perfect so far best 50', s.best.bonus, 5000);
+}
 // No college days yet -> 0, no bonus
 { const S = mk(); college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet', s.counted, 0); eq('none bonus', s.bonus, 0); eq('none next', s.next, null); }
-eq('bonusFor below', C.bonusFor(6999, 10000), 0);
+eq('bonusFor below', C.bonusFor(5999, 10000), 0); eq('bonusFor 60', C.bonusFor(6000, 10000), 1000); eq('bonusFor 69.99', C.bonusFor(6999, 10000), 1000);
 eq('bonusFor 70', C.bonusFor(7000, 10000), 2000);
 eq('bonusFor 84.99', C.bonusFor(8499, 10000), 2000); eq('bonusFor 85', C.bonusFor(8500, 10000), 3000); eq('bonusFor 94.99', C.bonusFor(9499, 10000), 3000); eq('bonusFor 95', C.bonusFor(9500, 10000), 5000);
 eq('bonusFor 100', C.bonusFor(10000, 10000), 5000);
