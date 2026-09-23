@@ -58,7 +58,7 @@ Changing either one signs out every device that is signed in.
 ```bash
 npm install
 npm run dev     # http://localhost:8888 and http://localhost:8888/parent
-npm test        # 48 reward-rule checks + 9 server checks
+npm test        # 60 reward-rule checks + 9 server checks
 ```
 
 The local server keeps data in memory and loses it when you stop the server.

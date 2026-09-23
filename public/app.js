@@ -296,36 +296,46 @@ function renderApp() {
 }
 
 function balanceCard(sum, L) {
-  const pounds = Math.floor(sum.earned / 100).toLocaleString('en-GB'), pence = String(sum.earned % 100).padStart(2, '0');
-  return `<section class="balance" aria-label="Balance">
-    <div class="lbl">Earned this month</div>
-    <div class="amt num" id="bal-amt" data-v="${sum.earned}">£${pounds}<span class="pence">.${pence}</span></div>
+  const total = sum.earned + sum.bonus;
+  const pounds = Math.floor(total / 100).toLocaleString('en-GB'), pence = String(total % 100).padStart(2, '0');
+  const rel = shortDateNoDay(sum.releaseDate);
+  return `<section class="balance" aria-label="Indicative payment this month">
+    <div class="lbl">Indicative payment · ${esc(fmtD(sum.ym + '-01', { month: 'long' }))}</div>
+    <div class="amt num" id="bal-amt" data-v="${total}">£${pounds}<span class="pence">.${pence}</span></div>
     <div class="row">
+      <div><span>Tasks earned</span><strong class="num">${money(sum.earned)}</strong></div>
+      <div><span>${sum.released ? 'Bonus · released ' + esc(rel) : 'Bonus · released ' + esc(rel)}</span><strong class="num">${money(sum.bonus)}</strong></div>
+    </div>
+    <div class="row" style="margin-top:12px">
       <div><span>Paid this month</span><strong class="num">${money(L.paidThisMonth)}</strong></div>
-      ${L.credit > 0 ? `<div><span>Credit carried forward</span><strong class="num credit">${money(L.credit)}</strong></div>` : `<div><span>Still to pay</span><strong class="num">${money(L.unpaid)}</strong></div>`}
+      ${L.credit > 0 ? `<div><span>Credit carried forward</span><strong class="num credit">${money(L.credit)}</strong></div>` : `<div><span>Still to pay now</span><strong class="num">${money(L.unpaid)}</strong></div>`}
     </div>
   </section>`;
 }
+const shortDateNoDay = (d) => fmtD(d, { day: 'numeric', month: 'short' });
 
 function progressCard(sum, compact) {
   const pct = Math.min(100, sum.rate * 100);
   const markers = C.LADDER.map((l) => `<i class="mk ${sum.unlocked.includes(l.key) ? 'on' : ''}" style="left:calc(${l.key}% - 1px)"><span>${l.key}%</span></i>`).join('');
+  const rel = shortDateNoDay(sum.releaseDate);
   let note;
-  if (sum.possible === 0) note = `<span class="muted">Nothing scheduled this month yet.</span>`;
+  const totalDays = sum.counted + sum.remainingDays;
+  if (totalDays === 0) note = `<span class="muted">No college days in this month's plan yet.</span>`;
+  else if (sum.counted === 0) note = `<span class="muted">Progress starts after the first college day.</span>`;
   else {
     const parts = [];
-    if (sum.bonus > 0) parts.push(`<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus ${sum.closed ? 'final' : 'unlocked'}</span>`);
-    if (sum.next) parts.push(`<span><strong class="num">${money(sum.next.neededPence)}</strong> <span class="muted">to the next bonus (${moneyShort(sum.next.bonusPence)} at ${sum.next.key}%)</span></span>`);
-    else if (sum.bonus === 5000) parts.push(`<span class="muted">Top bonus reached.</span>`);
-    else if (sum.bonus > 0) parts.push(`<span class="muted">Highest reachable level this month.</span>`);
-    else parts.push(`<span class="muted">Every completed task still adds to your balance.</span>`);
-    note = parts.join('');
+    if (sum.bonus > 0) parts.push(`<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus ${sum.released ? 'released ' + esc(rel) : 'on track · paid ' + esc(rel)}</span>`);
+    if (!sum.released && sum.next) parts.push(`<span class="muted">Attend the next <strong class="num" style="color:var(--ink)">${sum.next.days}</strong> college day${sum.next.days === 1 ? '' : 's'} to reach ${sum.next.key}% (${moneyShort(sum.next.bonusPence)})</span>`);
+    else if (!sum.released && sum.bonus === 5000) parts.push(`<span class="muted">Top bonus. Keep it going.</span>`);
+    else if (!sum.released && sum.bonus === 0) parts.push(`<span class="muted">Every day attended still adds ${moneyShort(T('college').valuePence)}.</span>`);
+    note = parts.join('') || `<span class="muted">Every day attended still adds ${moneyShort(T('college').valuePence)}.</span>`;
   }
   return `<section class="card" aria-label="Monthly progress">
-    <div class="prog-top"><h3>Monthly progress${sum.provisional && sum.bonus ? ' <span class="pill neutral">provisional</span>' : ''}</h3><span class="pct num">${sum.ratePct.toFixed(1)}%</span></div>
-    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of possible task value earned. Bonus markers at 70, 80 and 100 percent."><div class="fill" style="width:${pct}%"></div>${markers}</div>
+    <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3><span class="pct num">${sum.counted ? sum.ratePct.toFixed(1) + '%' : '–'}</span></div>
+    <div class="note" style="margin-top:2px">${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days so far'}${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}</div>
+    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of college days attended so far. Bonus markers at 70, 80 and 100 percent."><div class="fill" style="width:${pct}%"></div>${markers}</div>
     <div class="prog-note">${note}</div>
-    ${compact ? '' : `<div class="note" style="margin-top:8px">${money(sum.earned)} of ${money(sum.possible)} possible</div>`}
+    ${compact ? '' : `<div class="note" style="margin-top:8px">Bonus levels use college attendance only. Other tasks add to the balance but don't change the percentage.</div>`}
   </section>`;
 }
 
@@ -474,10 +484,10 @@ function renderPlan(t) {
     const lower = C.LADDER.filter((x) => x.key < l.key);
     const range = l.key === 100 ? '100%' : `${l.key}% to ${C.LADDER[C.LADDER.indexOf(l) + 1].key - 0.01}%`;
     void lower;
-    return `<div class="rung ${on ? 'on' : ''}">${icon(on ? 'unlock' : 'lock')}<div class="body"><div><strong>${range}</strong></div><div class="small muted">${on ? (sum.bonus === l.bonusPence ? (sum.closed ? 'Awarded' : 'Unlocked · provisional') : 'Passed') : 'Locked'}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
+    return `<div class="rung ${on ? 'on' : ''}">${icon(on ? 'unlock' : 'lock')}<div class="body"><div><strong>${range}</strong></div><div class="small muted">${on ? (sum.bonus === l.bonusPence ? (sum.released ? 'Released ' + shortDateNoDay(sum.releaseDate) : 'On track · paid ' + shortDateNoDay(sum.releaseDate)) : 'Passed') : 'Locked'}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
   };
   const ended = t > C.monthEnd(ym);
-  const monthResult = sum.closed ? `<p class="small" style="margin:10px 0 0">You earned <strong class="num">${money(sum.total)}</strong> this month.</p>` : ended ? `<p class="small muted" style="margin:10px 0 0">This month has ended. The bonus becomes final when it's closed in Parent mode.</p>` : '';
+  const monthResult = ended ? `<p class="small" style="margin:10px 0 0">You earned <strong class="num">${money(sum.total)}</strong> this month.</p>` : `<p class="small muted" style="margin:10px 0 0">Indicative so far: <strong class="num" style="color:var(--ink)">${money(sum.total)}</strong></p>`;
   const canPrev = ym > C.monthOf(start) || Object.keys(S.months).some((m) => m < ym);
   return `
     <section class="card">
@@ -670,7 +680,7 @@ function sheetPayment() {
   const t = today(), L = C.ledger(app.S, t);
   const recent = app.S.payments.slice().sort((a, b) => b.paidDate.localeCompare(a.paidDate)).slice(0, 6);
   openSheet('Record payment', `
-    <p class="note" style="margin-top:0">Still to pay: <strong class="num">${money(L.unpaid)}</strong>${L.credit ? ` · Credit carried forward: <strong class="num">${money(L.credit)}</strong>` : ''}. Provisional monthly bonuses are not included until the month is closed. This records a payment; it doesn't move money.</p>
+    <p class="note" style="margin-top:0">Still to pay: <strong class="num">${money(L.unpaid)}</strong>${L.credit ? ` · Credit carried forward: <strong class="num">${money(L.credit)}</strong>` : ''}. Monthly bonuses are added on the 1st of the following month. This records a payment; it doesn't move money.</p>
     <div class="grid2">
       <div class="field"><label for="p-amt">Amount (£)</label><input class="inp num" id="p-amt" inputmode="decimal" value="${(L.unpaid / 100).toFixed(2)}"></div>
       <div class="field"><label for="p-date">Date</label><input class="inp" type="date" id="p-date" value="${t}" max="${t}"></div>
@@ -736,7 +746,7 @@ function sheetClose() {
   if (m.closed) {
     openSheet(`Reopen ${monthName(ym)}`, `
       <p style="margin-top:0">Final result: <strong class="num">${money(sum.total)}</strong> (bonus ${money(sum.bonus)}).</p>
-      <p class="note">Reopening makes the bonus provisional again and removes it from the amount still to pay until the month is closed again.</p>
+      <p class="note">Reopening lets you change this month's tasks again. If attendance changes, the bonus is recalculated.</p>
       <button class="btn warn block" type="button" id="c-reopen">Reopen month</button>`, (body) => {
       const b = body.querySelector('#c-reopen');
       b.onclick = async () => {
@@ -748,12 +758,12 @@ function sheetClose() {
     return;
   }
   openSheet(`Close ${monthName(ym)}`, `
-    <p style="margin-top:0">Task earnings <strong class="num">${money(sum.earned)}</strong> of ${money(sum.possible)} possible (${sum.ratePct.toFixed(1)}%).</p>
-    <p>Final bonus: <strong class="num">${money(sum.bonus)}</strong> · Month total <strong class="num">${money(sum.total)}</strong></p>
-    <p class="note">Closing makes the bonus final and adds it to the amount still to pay. Tasks in a closed month can't be changed until it's reopened.</p>
+    <p style="margin-top:0">Task earnings <strong class="num">${money(sum.earned)}</strong>.</p>
+    <p>College attendance ${sum.ratePct.toFixed(1)}% · bonus <strong class="num">${money(sum.bonus)}</strong> · month total <strong class="num">${money(sum.total)}</strong></p>
+    <p class="note">The bonus was released on ${esc(longDate(sum.releaseDate))} whether or not you close the month. Closing locks the month's figures so later edits can't change them.</p>
     <button class="btn primary block" type="button" id="c-close">Close month</button>`, (body) => {
     body.querySelector('#c-close').onclick = async () => {
-      try { await ops.setMonth(ym, Object.assign({}, m, { closed: true, closedAt: nowISO(), finalBonusPence: C.bonusFor(sum.earned, sum.possible) })); closeSheet(); toast(`${monthName(ym)} closed`); }
+      try { await ops.setMonth(ym, Object.assign({}, m, { closed: true, closedAt: nowISO(), finalBonusPence: sum.bonus })); closeSheet(); toast(`${monthName(ym)} closed`); }
       catch (e) { sheetErr(body, 'Not saved. Try again.'); }
     };
   });

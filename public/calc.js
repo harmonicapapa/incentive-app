@@ -138,28 +138,47 @@
       earned += e; possible += p; remaining += r;
     }
 
-    const rate = possible === 0 ? 0 : earned / possible;
+    const cp = collegeProgress(S, ym, today);
     const month = S.months[ym] || {};
     const closed = !!month.closed;
-    const bonus = closed && typeof month.finalBonusPence === 'number' ? month.finalBonusPence : bonusFor(earned, possible);
-    const reachable = Math.min(possible, earned + remaining);
-
-    // Next threshold, limited to what is still reachable
-    let next = null;
-    const unlocked = LADDER.filter((t) => possible > 0 && earned * t.den >= possible * t.num);
-    const locked = LADDER.filter((t) => !(possible > 0 && earned * t.den >= possible * t.num));
-    const reachableLocked = locked.filter((t) => reachable * t.den >= possible * t.num);
-    if (reachableLocked.length) {
-      const t = reachableLocked[0];
-      next = { key: t.key, bonusPence: t.bonusPence, neededPence: Math.ceil((possible * t.num) / t.den) - earned };
-    }
-    const highestReachable = [...LADDER].reverse().find((t) => possible > 0 && reachable * t.den >= possible * t.num) || null;
-
+    const bonus = closed && typeof month.finalBonusPence === 'number' ? month.finalBonusPence : cp.bonus;
     return {
-      ym, earned, possible, rate, ratePct: Math.round(rate * 1000) / 10, bonus, closed, provisional: !closed,
-      total: earned + bonus, byTask, reachable, remaining, next, unlocked: unlocked.map((t) => t.key),
-      highestReachableKey: highestReachable ? highestReachable.key : null,
+      ym, earned, possible, byTask, remaining, closed,
+      // Monthly progress and bonus are based on college attendance to date only.
+      rate: cp.rate, ratePct: cp.ratePct, attended: cp.attended, counted: cp.counted, remainingDays: cp.remainingDays,
+      bonus, released: cp.released, releaseDate: cp.releaseDate, provisional: !cp.released,
+      next: cp.next, unlocked: cp.unlocked, total: earned + bonus,
     };
+  }
+
+  /**
+   * College attendance as at `today`: attended ÷ college days so far (excused days excluded).
+   * Today's college day only counts once it has been marked. The bonus tier is indicative
+   * during the month and is released on the first day of the following month.
+   */
+  function collegeProgress(S, ym, today) {
+    let attended = 0, counted = 0, remainingDays = 0;
+    for (const d of collegeDates(S, ym)) {
+      const st = dayStatus(S, 'college', d, today);
+      if (st === 'excused') continue;
+      if (st === 'completed') { attended++; counted++; }
+      else if (d < today || (d === today && st === 'missed' && S.occ[occId('college', d)])) counted++;
+      else remainingDays++;
+    }
+    const rate = counted === 0 ? 0 : attended / counted;
+    const bonus = counted === 0 ? 0 : bonusFor(attended, counted);
+    const unlocked = counted === 0 ? [] : LADDER.filter((t) => attended * t.den >= counted * t.num).map((t) => t.key);
+    // Next tier: how many more college days in a row it would take, if still possible this month.
+    let next = null;
+    for (const t of LADDER) {
+      if (unlocked.includes(t.key)) continue;
+      let days;
+      if (t.num === t.den) days = attended === counted ? 0 : Infinity;
+      else days = Math.max(0, Math.ceil((counted * t.num - attended * t.den) / (t.den - t.num)));
+      if (days >= 1 && days <= remainingDays) { next = { key: t.key, bonusPence: t.bonusPence, days }; break; }
+    }
+    const releaseDate = monthStart(shiftMonth(ym, 1));
+    return { attended, counted, remainingDays, rate, ratePct: Math.round(rate * 1000) / 10, bonus, unlocked, next, releaseDate, released: today >= releaseDate };
   }
 
   /** Tasks shown on Home for `today`. */
@@ -199,7 +218,7 @@
     return true;
   }
 
-  /** Money owed across all time: task earnings (all months) + finalised bonuses (closed months) − payments. */
+  /** Money owed across all time: task earnings (all months) + bonuses released on the 1st of the following month − payments. */
   function ledger(S, today) {
     const months = new Set(Object.values(S.occ).map((o) => monthOf(o.localDate)));
     Object.keys(S.months).forEach((m) => months.add(m));
@@ -208,7 +227,7 @@
       if (ym > monthOf(today)) continue;
       const s = monthSummary(S, ym, today);
       taskEarned += s.earned;
-      if (S.months[ym] && S.months[ym].closed) bonuses += s.bonus;
+      if (s.released) bonuses += s.bonus;
     }
     const paid = S.payments.reduce((s, p) => s + p.amountPence, 0);
     const bal = taskEarned + bonuses - paid;
@@ -266,7 +285,7 @@
   const api = {
     TZ, TASK_IDS, DEFAULT_TASKS, LADDER, todayLondon, addDays, weekday, mondayOf, monthOf, daysInMonth, monthDates, monthStart, monthEnd, shiftMonth,
     emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, bonusFor, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
-    validateImport, collegeDates,
+    validateImport, collegeDates, collegeProgress,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;
 })(typeof window !== 'undefined' ? window : globalThis);

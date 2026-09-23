@@ -23,15 +23,30 @@ for (const [ym, want] of [['2026-10', 23300], ['2026-11', 23000], ['2028-02', 22
 }
 // Full 31-day month -> 233 + 50
 { const S = mk(); fullMonth(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-11-05'); eq('full earned', s.earned, 23300); eq('full bonus', s.bonus, 5000); eq('full total', s.total, 28300); eq('full pct', s.ratePct, 100); }
-// Exactly 70% and 80%
-{ const S = mk(); // Nov 2026 no college: possible 9000+2000+4000 = 15000
-  C.planWeeks(S, '2026-11').slice(0, 4).forEach(m => { done(S, 'room', m < '2026-11-01' ? '2026-11-01' : m); done(S, 'meal', m < '2026-11-01' ? '2026-11-01' : m); });
-  C.monthDates('2026-11').slice(0, 15).forEach(d => done(S, 'morning', d));
-  let s = C.monthSummary(S, '2026-11', '2026-12-01'); eq('70 earned', s.earned, 10500); eq('70 possible', s.possible, 15000); eq('70 bonus only 20', s.bonus, 2000);
-  C.monthDates('2026-11').slice(15, 20).forEach(d => done(S, 'morning', d)); // +1500 = 12000 = 80%
-  s = C.monthSummary(S, '2026-11', '2026-12-01'); eq('80 bonus only 30', s.bonus, 3000); eq('80 pct', s.ratePct, 80);
-  S.occ[C.occId('morning', '2026-11-20')].status = 'missed'; s = C.monthSummary(S, '2026-11', '2026-12-01'); eq('79.8 -> 20', s.bonus, 2000); eq('79.8 pct', s.ratePct, 78);
+// College attendance as at today: 6 of 8 so far -> 75%, indicative £20, released on the 1st
+{ const S = mk(); const cd = college16(S, '2026-10'); // first 16 weekdays of Oct
+  cd.slice(0, 8).forEach((d, i) => { if (i !== 2 && i !== 5) done(S, 'college', d); });
+  const today = C.addDays(cd[7], 1); // day after the 8th college day
+  let s = C.monthSummary(S, '2026-10', today); eq('asat counted', s.counted, 8); eq('asat attended', s.attended, 6); eq('asat pct', s.ratePct, 75); eq('asat bonus', s.bonus, 2000); eq('asat not released', s.released, false);
+  eq('asat next 80', s.next && s.next.key, 80); eq('asat next days', s.next && s.next.days, 2); // (6+2)/(8+2) = 80%
+  eq('bonus not in ledger yet', C.ledger(S, today).bonuses, 0);
+  eq('released 1st next month', C.monthSummary(S, '2026-10', '2026-11-01').released, true);
+  // after month end, the unattended remaining days count as not attended
+  eq('final pct', C.monthSummary(S, '2026-10', '2026-11-01').ratePct, 37.5);
 }
+// Today's unmarked college day doesn't lower the rate; other tasks don't affect progress
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 3).forEach(d => done(S, 'college', d));
+  C.monthDates('2026-10').slice(0, 10).forEach(d => done(S, 'morning', d));
+  const s = C.monthSummary(S, '2026-10', cd[3]); eq('today unmarked excluded', s.counted, 3); eq('100% so far', s.ratePct, 100); eq('100% bonus indicative', s.bonus, 5000);
+}
+// Exactly 70% and 80% (college days to date)
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 7).forEach(d => done(S, 'college', d)); const today = C.addDays(cd[9], 1);
+  let s = C.monthSummary(S, '2026-10', today); eq('70 exact', s.ratePct, 70); eq('70 only 20', s.bonus, 2000);
+  done(S, 'college', cd[7]); s = C.monthSummary(S, '2026-10', today); eq('80 exact', s.ratePct, 80); eq('80 only 30', s.bonus, 3000);
+  exc(S, 'college', cd[8]); exc(S, 'college', cd[9]); s = C.monthSummary(S, '2026-10', today); eq('excused excluded -> 100', s.ratePct, 100); eq('100 only 50', s.bonus, 5000);
+}
+// No college days yet -> 0, no bonus
+{ const S = mk(); college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet', s.counted, 0); eq('none bonus', s.bonus, 0); eq('none next', s.next, null); }
 eq('bonusFor below', C.bonusFor(6999, 10000), 0);
 eq('bonusFor 70', C.bonusFor(7000, 10000), 2000);
 eq('bonusFor 99.99', C.bonusFor(9999, 10000), 3000);
@@ -55,8 +70,8 @@ eq('bonusFor 0 possible', C.bonusFor(0, 0), 0);
 { const S = mk(); done(S, 'morning', '2026-10-01'); eq('dup morning', C.canComplete(S, 'morning', '2026-10-01', '2026-10-01'), false); eq('future blocked', C.canComplete(S, 'morning', '2026-10-05', '2026-10-01'), false); }
 // Payments: reduce still-to-pay, not earned; overpayment -> credit; provisional bonus excluded
 { const S = mk(); fullMonth(S, '2026-10'); S.payments.push({ id: 'p1', amountPence: 10000, paidDate: '2026-10-20' });
-  let L = C.ledger(S, '2026-10-31'); eq('unpaid', L.unpaid, 13300); eq('earned unchanged', C.monthSummary(S, '2026-10', '2026-10-31').earned, 23300); eq('prov bonus excluded', L.bonuses, 0);
-  S.months['2026-10'].closed = true; S.months['2026-10'].finalBonusPence = 5000; L = C.ledger(S, '2026-11-01'); eq('closed bonus in ledger', L.unpaid, 18300);
+  let L = C.ledger(S, '2026-10-31'); eq('unpaid (bonus not yet released)', L.unpaid, 13300); eq('earned unchanged', C.monthSummary(S, '2026-10', '2026-10-31').earned, 23300); eq('prov bonus excluded', L.bonuses, 0);
+  L = C.ledger(S, '2026-11-01'); eq('bonus released on the 1st', L.unpaid, 18300);
   S.payments.push({ id: 'p2', amountPence: 20000, paidDate: '2026-11-01' }); L = C.ledger(S, '2026-11-01'); eq('credit', L.credit, 1700); eq('credit unpaid 0', L.unpaid, 0);
 }
 // Correction after payment recalculates
@@ -64,9 +79,6 @@ eq('bonusFor 0 possible', C.bonusFor(0, 0), 0);
   S.occ[C.occId('morning', '2026-10-02')].status = 'missed'; const L = C.ledger(S, '2026-10-03'); eq('correction credit', L.credit, 300); }
 // Start date excludes earlier days
 { const S = mk('2026-10-15'); const s = C.monthSummary(S, '2026-10', '2026-10-15'); eq('partial morning', s.byTask.morning.possible, 17 * 300); eq('partial weeks', C.planWeeks(S, '2026-10').length, 3); }
-// Next threshold & reachability
-{ const S = mk(); college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('next 70', s.next.key, 70); eq('need', s.next.neededPence, Math.ceil(23300 * 0.7));
-  const S2 = mk(); college16(S2, '2026-10'); C.monthDates('2026-10').slice(0, 25).forEach(d => {}); const s2 = C.monthSummary(S2, '2026-10', '2026-10-31'); eq('unreachable -> null', s2.next, null); }
 // Import validation
 eq('reject junk', C.validateImport({ a: 1 }).length > 0, true);
 eq('accept valid', C.validateImport({ app: 'earned-ledger', version: 1, settings: C.defaultSettings('2026-09-01'), months: { '2026-09': { collegeDates: ['2026-09-01'] } }, occurrences: [], payments: [], auditEvents: [] }), []);
