@@ -287,3 +287,13 @@ a.btn{text-decoration:none;color:inherit}
 .switch .knob::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .2s}
 .switch[aria-checked="true"] .knob{background:var(--green)}
 .switch[aria-checked="true"] .knob::after{transform:translateX(16px)}
+
+/* attendance levels strip */
+.lvls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;margin:14px 0 12px}
+.lvl{border:1px solid var(--line);border-radius:6px;padding:6px 4px;text-align:center;display:flex;flex-direction:column;gap:1px;background:var(--surface)}
+.lvl strong{font-size:14px}
+.lvl span{font-size:11px;color:var(--ink-3)}
+.lvl.cur{background:var(--amber-soft);border-color:var(--amber)}
+.lvl.cur strong{color:var(--amber)}
+.lvl.gone{opacity:.45}
+.lvl.gone strong{text-decoration:line-through;font-weight:500}

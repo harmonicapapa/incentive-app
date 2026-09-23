@@ -274,7 +274,7 @@ function renderWelcome() {
   return `<div class="shell"><div class="welcome">
     <div class="mark">${icon('banknote', 'lg')}</div>
     <h1>Set up the ledger</h1>
-    <p>Completed tasks add to a monthly balance, with a bonus at 70%, 85% and 95% college attendance. Start fresh to begin from today, then choose this month's college days.</p>
+    <p>Completed tasks add to a monthly balance, with an attendance bonus that drops one level for every two college days missed. Start fresh to begin from today, then choose this month's college days.</p>
     <div class="stack" style="max-width:360px">
       <button class="btn primary block" type="button" data-act="start" id="w-start">Start fresh</button>
       <a class="btn block" href="/demo" id="w-demo">Try demo mode</a>
@@ -323,37 +323,37 @@ function balanceCard(sum, L) {
 const shortDateNoDay = (d) => fmtD(d, { day: 'numeric', month: 'short' });
 
 function progressCard(sum, compact) {
-  const pct = Math.min(100, sum.rate * 100);
-  const markers = C.LADDER.map((l) => `<i class="mk ${sum.unlocked.includes(l.key) ? 'on' : ''}" style="left:calc(${l.key}% - 1px)"><span>${l.key}%</span></i>`).join('');
   const rel = shortDateNoDay(sum.releaseDate);
   const b = sum.best;
-  const canBest = !sum.released && b && b.days > 0;
+  const canBest = !sum.released && b && b.days > 0 && sum.planned > 0;
   const showBest = canBest && app.bestCase;
-  let bestNote = '';
-  if (showBest) {
-    const gain = b.bonus - sum.bonus;
-    bestNote = `<span class="pill ${b.bonus ? '' : 'neutral'}">${icon(b.bonus ? 'unlock' : 'lock', 'sm')}${b.bonus ? moneyShort(b.bonus) + ' bonus' : 'No bonus'} · ${b.ratePct.toFixed(1)}%</span>
-      <span class="muted">Attending all <strong class="num" style="color:var(--ink)">${b.days}</strong> remaining college day${b.days === 1 ? '' : 's'} makes it ${b.attended} of ${b.counted}. That adds ${moneyShort(b.extraPence)} for the days${gain > 0 ? ` and ${moneyShort(gain)} more bonus` : ''}: <strong class="num" style="color:var(--ink)">${money(b.extraPence + gain)}</strong> extra this month.</span>`;
-  }
+  const collegeV = T('college').valuePence;
+  const strip = C.LADDER.map((l) => {
+    const cur = sum.level && sum.level.key === l.key;
+    const gone = sum.level ? l.maxMissed < sum.missed : sum.planned > 0;
+    return `<div class="lvl ${cur ? 'cur' : ''} ${gone ? 'gone' : ''}"><strong class="num">${moneyShort(l.bonusPence)}</strong><span>${l.maxMissed === 0 ? '0 missed' : `${l.maxMissed - 1}–${l.maxMissed} missed`}</span></div>`;
+  }).join('');
   let note;
-  const totalDays = sum.counted + sum.remainingDays;
-  if (totalDays === 0) note = `<span class="muted">No college days in this month's plan yet.</span>`;
-  else if (sum.counted === 0) note = `<span class="muted">Progress starts after the first college day.</span>`;
+  if (sum.planned === 0) note = `<span class="muted">No college days in this month's plan yet.</span>`;
+  else if (!sum.level) note = `<span class="muted">${sum.missed} days missed this month, so no attendance bonus. Every day attended still adds ${moneyShort(collegeV)}.</span>`;
+  else if (showBest) note = `<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus kept</span>
+      <span class="muted">Attending all <strong class="num" style="color:var(--ink)">${b.days}</strong> remaining college day${b.days === 1 ? '' : 's'} keeps you on the ${moneyShort(sum.bonus)} level and adds ${moneyShort(b.extraPence)} for the days: <strong class="num" style="color:var(--ink)">${money(sum.bonus + b.extraPence)}</strong> from college still to come.</span>`;
   else {
-    const parts = [];
-    if (sum.bonus > 0) parts.push(`<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus ${sum.released ? 'released ' + esc(rel) : 'on track · paid ' + esc(rel)}</span>`);
-    if (!sum.released && sum.next) parts.push(`<span class="muted">Attend the next <strong class="num" style="color:var(--ink)">${sum.next.days}</strong> college day${sum.next.days === 1 ? '' : 's'} to reach ${sum.next.key}% (${moneyShort(sum.next.bonusPence)})</span>`);
-    else if (!sum.released && sum.bonus === 5000) parts.push(`<span class="muted">Top bonus. Keep it going.</span>`);
-    else if (!sum.released && sum.bonus === 0) parts.push(`<span class="muted">Every day attended still adds ${moneyShort(T('college').valuePence)}.</span>`);
-    note = parts.join('') || `<span class="muted">Every day attended still adds ${moneyShort(T('college').valuePence)}.</span>`;
+    const parts = [`<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus ${sum.released ? 'released ' + esc(rel) : 'on track · paid ' + esc(rel)}</span>`];
+    if (!sum.released) {
+      if (sum.allowance > 0) parts.push(`<span class="muted">You can miss <strong class="num" style="color:var(--ink)">${sum.allowance}</strong> more day${sum.allowance === 1 ? '' : 's'} and keep ${moneyShort(sum.bonus)}.</span>`);
+      else if (sum.remainingDays > 0) parts.push(`<span class="muted">Don't miss any more college days to keep ${moneyShort(sum.bonus)}${sum.lower ? `; one more miss moves you to ${moneyShort(sum.lower.bonusPence)}` : '; one more miss means no bonus'}.</span>`);
+    }
+    note = parts.join('');
   }
+  const sub = `${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days yet'} · ${sum.missed} missed${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}`;
   return `<section class="card" aria-label="Monthly progress">
-    <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3><span class="pct num">${sum.counted ? sum.ratePct.toFixed(1) + '%' : '–'}</span></div>
-    <div class="note" style="margin-top:2px">${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days so far'}${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}</div>
-    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of college days attended so far.${showBest ? ` If every remaining day is attended: ${b.ratePct.toFixed(1)} percent.` : ''} Bonus markers at ${C.LADDER.map((l) => l.key).join(', ')} percent.">${showBest ? `<div class="fill proj" style="width:${Math.min(100, b.rate * 100)}%"></div>` : ''}<div class="fill" style="width:${pct}%"></div>${markers}</div>
-    <div class="prog-note">${showBest ? bestNote : note}</div>
-    ${canBest ? `<button type="button" class="switch" role="switch" aria-checked="${showBest}" data-act="best-case" id="best-toggle"><span class="knob" aria-hidden="true"></span>If I attend every day for the rest of the month</button>` : ''}
-    ${compact ? '' : `<div class="note" style="margin-top:8px">Bonus levels use college attendance only. Other tasks add to the balance but don't change the percentage.</div>`}
+    <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3><span class="pct num">${sum.planned ? moneyShort(sum.bonus) : '–'}</span></div>
+    <div class="note" style="margin-top:2px">${sub}</div>
+    ${sum.planned ? `<div class="lvls" role="img" aria-label="Attendance bonus levels: £50 for no days missed, £30 for 1 to 2, £20 for 3 to 4, £10 for 5 to 6. ${sum.missed} missed so far; current level ${moneyShort(sum.bonus)}.">${strip}</div>` : ''}
+    <div class="prog-note">${note}</div>
+    ${canBest && sum.level ? `<button type="button" class="switch" role="switch" aria-checked="${showBest}" data-act="best-case" id="best-toggle"><span class="knob" aria-hidden="true"></span>If I attend every day for the rest of the month</button>` : ''}
+    ${compact ? '' : `<div class="note" style="margin-top:8px">The bonus depends on college days missed. Excused days don't count as missed. Other tasks add to the balance but don't change the bonus.</div>`}
   </section>`;
 }
 
@@ -552,12 +552,10 @@ function renderPlan(t) {
     return `<div class="cat"><span class="muted">${icon(id, 'sm')}</span><div><div class="small"><strong>${esc(T(id).label)}</strong></div>${extra ? `<div class="meta">${esc(extra.replace(/^ · /, ''))}</div>` : ''}<div class="mini"><i style="width:${pct}%"></i></div></div><span class="small num">${money(b.earned)} <span class="muted">/ ${money(b.possible)}</span></span></div>`;
   }).join('');
   const rung = (l) => {
-    const on = sum.unlocked.includes(l.key);
-    const lower = C.LADDER.filter((x) => x.key < l.key);
-    const nxt = C.LADDER[C.LADDER.indexOf(l) + 1];
-    const range = nxt ? `${l.key}% to ${(nxt.key - 0.01).toFixed(2)}%` : `${l.key}% and above`;
-    void lower;
-    return `<div class="rung ${on ? 'on' : ''}">${icon(on ? 'unlock' : 'lock')}<div class="body"><div><strong>${range}</strong></div><div class="small muted">${on ? (sum.bonus === l.bonusPence ? (sum.released ? 'Released ' + shortDateNoDay(sum.releaseDate) : 'On track · paid ' + shortDateNoDay(sum.releaseDate)) : 'Passed') : 'Locked'}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
+    const cur = sum.level && sum.level.key === l.key;
+    const gone = sum.level ? l.maxMissed < sum.missed : sum.planned > 0;
+    const status = cur ? (sum.released ? 'Released ' + shortDateNoDay(sum.releaseDate) : 'Current level · paid ' + shortDateNoDay(sum.releaseDate)) : gone ? 'Not available this month' : 'If more days are missed';
+    return `<div class="rung ${cur ? 'on' : ''}">${icon(cur ? 'unlock' : 'lock')}<div class="body"><div><strong>${esc(l.label)}</strong></div><div class="small muted">${status}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
   };
   const ended = t > C.monthEnd(ym);
   const monthResult = ended ? `<p class="small" style="margin:10px 0 0">You earned <strong class="num">${money(sum.total)}</strong> this month.</p>` : `<p class="small muted" style="margin:10px 0 0">Indicative so far: <strong class="num" style="color:var(--ink)">${money(sum.total)}</strong></p>`;
@@ -588,7 +586,7 @@ function renderPlan(t) {
       <div class="weeks">${weeks.map(wkRow).join('') || '<div class="empty">No weeks in plan</div>'}</div>
     </section>
     <section class="card" aria-label="By task"><div class="prog-top" style="margin-bottom:4px"><h3>By task</h3></div>${catRows}</section>
-    <section class="card ladder" aria-label="Bonus ladder"><div class="prog-top" style="margin-bottom:4px"><h3>Bonus ladder</h3><span class="small muted">Highest level only</span></div>${C.LADDER.map(rung).join('')}</section>
+    <section class="card ladder" aria-label="Bonus ladder"><div class="prog-top" style="margin-bottom:4px"><h3>Attendance bonus</h3><span class="small muted">7+ missed: no bonus</span></div>${C.LADDER.map(rung).join('')}</section>
     ${parent ? `<div class="section-h" id="settings"><h2>Parent tools</h2></div>${renderParentTools(ym, t, sum)}` : `<p class="note" id="settings">Read-only view. Updates every minute.</p>`}`;
 }
 

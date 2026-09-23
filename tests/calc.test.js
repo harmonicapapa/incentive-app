@@ -23,46 +23,33 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
 }
 // Full 31-day month -> 233 + 50
 { const S = mk(); fullMonth(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-11-05'); eq('full earned', s.earned, 27300); eq('full bonus', s.bonus, 5000); eq('full total', s.total, 32300); eq('full pct', s.ratePct, 100); }
-// College attendance as at today: 6 of 8 so far -> 75%, indicative £20, released on the 1st
-{ const S = mk(); const cd = college16(S, '2026-10'); // first 16 weekdays of Oct
+// Missed-days bonus: 6 of 8 so far -> 2 missed -> £30 level, indicative, released on the 1st
+{ const S = mk(); const cd = college16(S, '2026-10');
   cd.slice(0, 8).forEach((d, i) => { if (i !== 2 && i !== 5) done(S, 'college', d); });
-  const today = C.addDays(cd[7], 1); // day after the 8th college day
-  let s = C.monthSummary(S, '2026-10', today); eq('asat counted', s.counted, 8); eq('asat attended', s.attended, 6); eq('asat pct', s.ratePct, 75); eq('asat bonus', s.bonus, 2000); eq('asat not released', s.released, false);
-  eq('asat next 85', s.next && s.next.key, 85); eq('asat next days', s.next && s.next.days, 6); // (6+6)/(8+6) = 85.7%
+  const today = C.addDays(cd[7], 1);
+  let s = C.monthSummary(S, '2026-10', today); eq('asat counted', s.counted, 8); eq('asat missed', s.missed, 2); eq('asat bonus', s.bonus, 3000); eq('asat allowance', s.allowance, 0); eq('asat lower', s.lower && s.lower.bonusPence, 2000); eq('asat not released', s.released, false);
   eq('bonus not in ledger yet', C.ledger(S, today).bonuses, 0);
   eq('released 1st next month', C.monthSummary(S, '2026-10', '2026-11-01').released, true);
-  // after month end, the unattended remaining days count as not attended
-  eq('final pct', C.monthSummary(S, '2026-10', '2026-11-01').ratePct, 37.5);
+  eq('month end: unattended days are missed', C.monthSummary(S, '2026-10', '2026-11-01').bonus, 0);
 }
-// Today's unmarked college day doesn't lower the rate; other tasks don't affect progress
-{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 3).forEach(d => done(S, 'college', d));
+// Every band in a 16-day month
+{ const want = { 0: 5000, 1: 3000, 2: 3000, 3: 2000, 4: 2000, 5: 1000, 6: 1000, 7: 0, 10: 0 };
+  for (const [m, b] of Object.entries(want)) { const S = mk(); const cd = college16(S, '2026-10'); cd.slice(Number(m)).forEach(d => done(S, 'college', d)); eq('missed ' + m, C.monthSummary(S, '2026-10', '2026-11-01').bonus, b); }
+  eq('levelFor 0', C.levelFor(0).bonusPence, 5000); eq('levelFor 7', C.levelFor(7), null); eq('bonusForMissed 6', C.bonusForMissed(6), 1000);
+}
+// Excused days are never missed; today's unmarked day isn't missed; other tasks don't matter
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 3).forEach(d => done(S, 'college', d)); exc(S, 'college', cd[3]);
   C.monthDates('2026-10').slice(0, 10).forEach(d => done(S, 'morning', d));
-  const s = C.monthSummary(S, '2026-10', cd[3]); eq('today unmarked excluded', s.counted, 3); eq('100% so far', s.ratePct, 100); eq('100% bonus indicative', s.bonus, 5000);
+  const s = C.monthSummary(S, '2026-10', cd[4]); eq('excused not missed', s.missed, 0); eq('today not missed', s.remainingDays, 12); eq('£50 so far', s.bonus, 5000); eq('allowance at top', s.allowance, 0);
 }
-// Exactly 70%, 85% and 95% (20 college days to date)
-{ const S = mk(); const cd = C.monthDates('2026-10').filter(d => C.weekday(d) <= 5).slice(0, 20); S.months['2026-10'] = { collegeDates: cd }; const today = C.addDays(cd[19], 1);
-  cd.slice(0, 14).forEach(d => done(S, 'college', d));
-  let s = C.monthSummary(S, '2026-10', today); eq('70 exact', s.ratePct, 70); eq('70 only 20', s.bonus, 2000);
-  cd.slice(14, 16).forEach(d => done(S, 'college', d)); s = C.monthSummary(S, '2026-10', today); eq('80 now only 20', s.bonus, 2000);
-  done(S, 'college', cd[16]); s = C.monthSummary(S, '2026-10', today); eq('85 exact', s.ratePct, 85); eq('85 only 30', s.bonus, 3000);
-  done(S, 'college', cd[17]); s = C.monthSummary(S, '2026-10', today); eq('90 still 30', s.bonus, 3000);
-  done(S, 'college', cd[18]); s = C.monthSummary(S, '2026-10', today); eq('95 exact', s.ratePct, 95); eq('95 only 50', s.bonus, 5000);
+// Allowance counts down within a band
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(1, 4).forEach(d => done(S, 'college', d)); // 1 missed
+  const s = C.monthSummary(S, '2026-10', cd[4]); eq('1 missed £30', s.bonus, 3000); eq('1 more allowed', s.allowance, 1);
+  eq('best keeps level', s.best.bonus, 3000); eq('best extra', s.best.extraPence, 12 * 500);
 }
-// 16-day month: 15 of 16 (93.75%) is £30; all 16 needed for £50
-{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 15).forEach(d => done(S, 'college', d)); const s = C.monthSummary(S, '2026-10', '2026-11-01'); eq('15 of 16', s.bonus, 3000); }
-// 60% level and best-case projection
-{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 6).forEach((d, i) => { if (i !== 1 && i !== 4) done(S, 'college', d); }); // 4 of 6 = 66.7%
-  let s = C.monthSummary(S, '2026-10', cd[6]); eq('66.7 -> 10', s.bonus, 1000); eq('next is 70', s.next && s.next.key, 70);
-  eq('best days', s.best.days, 10); eq('best attended', s.best.attended, 14); eq('best counted', s.best.counted, 16); eq('best pct', s.best.ratePct, 87.5); eq('best bonus 30', s.best.bonus, 3000); eq('best extra', s.best.extraPence, 5000);
-  cd.slice(0, 6).forEach(d => done(S, 'college', d)); s = C.monthSummary(S, '2026-10', cd[6]); eq('perfect so far best 50', s.best.bonus, 5000);
-}
-// No college days yet -> 0, no bonus
-{ const S = mk(); college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet', s.counted, 0); eq('none bonus', s.bonus, 0); eq('none next', s.next, null); }
-eq('bonusFor below', C.bonusFor(5999, 10000), 0); eq('bonusFor 60', C.bonusFor(6000, 10000), 1000); eq('bonusFor 69.99', C.bonusFor(6999, 10000), 1000);
-eq('bonusFor 70', C.bonusFor(7000, 10000), 2000);
-eq('bonusFor 84.99', C.bonusFor(8499, 10000), 2000); eq('bonusFor 85', C.bonusFor(8500, 10000), 3000); eq('bonusFor 94.99', C.bonusFor(9499, 10000), 3000); eq('bonusFor 95', C.bonusFor(9500, 10000), 5000);
-eq('bonusFor 100', C.bonusFor(10000, 10000), 5000);
-eq('bonusFor 0 possible', C.bonusFor(0, 0), 0);
+// No college days planned -> no bonus; planned but none yet -> £50 level
+{ const S = mk(); eq('no plan', C.monthSummary(S, '2026-10', '2026-10-01').bonus, 0);
+  college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet counted', s.counted, 0); eq('none yet level', s.bonus, 5000); eq('none next', s.next, null); }
 // Excusals remove from denominator
 { const S = mk(); const cd = college16(S, '2026-10'); const before = C.monthSummary(S, '2026-10', '2026-10-01').possible; exc(S, 'college', cd[0]);
   const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('excuse college', before - s.possible, 500); eq('excuse earns 0', s.earned, 0);
