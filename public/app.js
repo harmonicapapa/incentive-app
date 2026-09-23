@@ -20,7 +20,7 @@ const timeLondon = (iso) => { try { return new Intl.DateTimeFormat('en-GB', { ti
 const hourLondon = () => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', hour: '2-digit', hour12: false }).format(new Date()));
 const today = () => C.todayLondon();
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-const STATUS_LABEL = { completed: 'Completed', missed: 'Not completed', excused: 'Excused and not counted', scheduled: 'Scheduled', future: 'Upcoming', open: 'Open' };
+const STATUS_LABEL = { completed: 'Completed', missed: 'Not completed', excused: 'Excused and not counted', scheduled: 'Unticked', future: 'Upcoming', open: 'Open' };
 async function sha256(s) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -204,7 +204,25 @@ async function complete(taskId, date) {
     await ops.setOcc(o);
     toast(`${moneyShort(v)} added${t === today() ? '' : ' for ' + shortDate(t)}`, { undo: () => undoCompletion(o) });
   } catch (e) { /* server state reloaded */ }
-  finally { app.pending.delete(id); }
+  finally { app.pending.delete(id); render(); }
+}
+async function uncomplete(occId) {
+  if (ROLE !== 'parent') return;
+  const o = app.S.occ[occId];
+  if (!o || o.status !== 'completed' || app.pending.has(occId)) return;
+  if (app.S.months[C.monthOf(o.localDate)] && app.S.months[C.monthOf(o.localDate)].closed) return toast('This month is closed. Reopen it to make changes.');
+  app.pending.add(occId);
+  const orig = Object.assign({}, o);
+  try {
+    await changeStatus({ taskId: o.taskId, date: o.localDate, to: 'scheduled', reason: 'Unticked', weekMonday: C.isWeekly(o.taskId) ? C.mondayOf(o.localDate) : null });
+    toast(`${T(o.taskId).label} unticked · ${moneyShort(o.valuePence)} removed`, { undo: async () => {
+      if (app.S.occ[occId]) return;
+      await ops.setOcc(Object.assign({}, orig, { updatedAt: nowISO() }));
+      await ops.addAudit({ id: uid(), kind: 'correction', at: nowISO(), occId, taskId: orig.taskId, localDate: orig.localDate, from: 'scheduled', to: 'completed', reason: 'Untick undone', valuePence: orig.valuePence });
+      toast('Ticked again');
+    } });
+  } catch (e) { /* server state reloaded */ }
+  finally { app.pending.delete(occId); render(); }
 }
 async function undoCompletion(o) {
   const cur = app.S.occ[o.id];
@@ -425,7 +443,11 @@ function taskRow(item, viewDate) {
   if (item.status === 'excused') sub = 'Excused and not counted';
   let control;
   if (ROLE !== 'parent') control = done ? `<span class="cbtn on" role="img" aria-label="Done">${icon('check')}</span>` : quiet ? `<span class="tag">${item.status === 'capped' ? 'Complete' : 'Excused'}</span>` : `<span class="tag">To do</span>`;
-  else if (done) control = `<button class="cbtn on" type="button" disabled aria-label="${esc(d.label)} completed" id="c-${item.taskId}">${icon('check')}</button>`;
+  else if (done) {
+    const o = app.S.occ[item.occId];
+    const locked = o && app.S.months[C.monthOf(o.localDate)] && app.S.months[C.monthOf(o.localDate)].closed;
+    control = `<button class="cbtn on" type="button" data-act="uncomplete" data-occ="${esc(item.occId)}" id="c-${item.taskId}" aria-label="${esc(d.label)} completed. Untick" title="${locked ? 'This month is closed' : 'Untick'}" ${locked || app.pending.has(item.occId) ? 'disabled' : ''}>${icon('check')}</button>`;
+  }
   else if (quiet) control = `<span class="tag">${item.status === 'capped' ? 'Complete' : 'Excused'}</span>`;
   else {
     const can = C.canComplete(app.S, item.taskId, item.weekly ? (viewDate || today()) : item.date, today());
@@ -956,6 +978,7 @@ document.addEventListener('click', async (e) => {
   const el = e.target.closest('[data-act]'); if (!el || !$('#app').contains(el)) return;
   const act = el.dataset.act;
   if (act === 'complete') return complete(el.dataset.task, el.dataset.date);
+  if (act === 'uncomplete') return uncomplete(el.dataset.occ);
   if (act === 'home-day') {
     const t = today(), start = (app.S.settings && app.S.settings.startDate) || t;
     const cur = app.homeDate || t, dlt = Number(el.dataset.d);

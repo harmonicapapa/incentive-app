@@ -365,3 +365,6 @@ a.btn{text-decoration:none;color:inherit}
 .today-line.pos strong{color:var(--green-on-navy)}
 .today-line.neg strong{color:#F4B37A}
 .today-line .tl-bits{flex-basis:100%;font-size:12px;color:var(--navy-soft)}
+
+.cbtn.on:not(:disabled){cursor:pointer}
+.cbtn.on:not(:disabled):hover{background:var(--surface);color:var(--green)}
