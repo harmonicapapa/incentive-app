@@ -262,3 +262,11 @@ button.day:hover{border-color:var(--ink-3)}
 .wbadges .bdg{width:22px;height:22px}
 .wbadges .bdg .ic{width:12px;height:12px}
 @media (max-width:360px){.cal{grid-template-columns:repeat(7,minmax(0,1fr)) 20px;gap:3px}.wkcell .bdg{width:14px;height:14px}}
+
+/* demo bar */
+.demo-bar{flex-wrap:wrap}
+.demo-ctl{display:inline-flex;align-items:center;gap:10px}
+.seg-sm{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--surface)}
+.seg-sm button{border:0;background:transparent;padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
+.seg-sm button[aria-pressed="true"]{background:var(--navy);color:var(--navy-ink)}
+a.btn{text-decoration:none;color:inherit}

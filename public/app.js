@@ -62,7 +62,8 @@ const ICONS = {
 const icon = (n, cls = '') => `<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n] || ''}</svg>`;
 
 // ---------------- app state ----------------
-const ROLE = document.body.dataset.role === 'parent' ? 'parent' : 'viewer';
+const PAGE = document.body.dataset.role; // viewer | parent | demo
+let ROLE = PAGE === 'viewer' ? 'viewer' : 'parent';
 const app = {
   mode: 'loading', // loading | login | welcome | notset | offline | live | demo
   S: C.emptyState(),
@@ -139,6 +140,7 @@ async function signOut() {
 }
 
 function boot() {
+  if (PAGE === 'demo') { app.S = buildDemo(); app.mode = 'demo'; render(); return; }
   render();
   load();
   if (ROLE === 'viewer') {
@@ -162,7 +164,7 @@ function buildDemo() {
     for (const d of C.monthDates(m)) {
       if (d >= t) break;
       if (rnd() < 0.86) occ('morning', d, 'completed');
-      if (college.includes(d)) { if (m === ym && d === college[2]) occ('college', d, 'excused', { note: 'College closed' }); else if (rnd() < 0.9) occ('college', d, 'completed'); }
+      if (college.includes(d)) { if (m === ym && d === college[2]) occ('college', d, 'excused', { note: 'College closed' }); else if (rnd() < 0.9 && !(m === ym && (d === college[6] || d === college[9]))) occ('college', d, 'completed'); }
     }
     const weeks = C.planWeeks(S, m);
     weeks.forEach((mon, i) => {
@@ -260,7 +262,7 @@ function renderLogin() {
       ${app.loginError ? `<div class="err" role="alert">${esc(app.loginError)}</div>` : ''}
       <div class="field" style="margin:0"><label for="pw">Password</label><input class="inp" type="password" id="pw" autocomplete="current-password" required></div>
       <button class="btn primary block" type="submit" id="pw-go" ${app.busy ? 'disabled' : ''}>${app.busy ? 'Signing in…' : 'Sign in'}</button>
-      <button class="btn block" type="button" data-act="demo" id="w-demo">Try demo mode</button>
+      <a class="btn block" href="/demo" id="w-demo">Try demo mode</a>
     </form>
     <p class="note" style="margin-top:18px">Demo mode uses sample activity and saves nothing.</p>
   </div></div>`;
@@ -275,7 +277,7 @@ function renderWelcome() {
     <p>Completed tasks add to a monthly balance, with a bonus at 70%, 80% and 100% of what's possible. Start fresh to begin from today, then choose this month's college days.</p>
     <div class="stack" style="max-width:360px">
       <button class="btn primary block" type="button" data-act="start" id="w-start">Start fresh</button>
-      <button class="btn block" type="button" data-act="demo" id="w-demo">Try demo mode</button>
+      <a class="btn block" href="/demo" id="w-demo">Try demo mode</a>
       <button class="btn block" type="button" data-act="signout" id="w-signout">Sign out</button>
     </div>
   </div></div>`;
@@ -291,7 +293,9 @@ function renderApp() {
       <div><h1>${greet}</h1><div class="date">${esc(longDate(t))}</div></div>
       ${ROLE === 'parent' && app.mode === 'live' ? `<button class="iconbtn" type="button" data-act="signout" aria-label="Sign out" title="Sign out" id="hdr-signout">${icon('logout')}</button>` : `<button class="iconbtn" type="button" data-act="tab" data-tab="plan" data-scroll="settings" aria-label="Plan" title="Plan" id="hdr-settings">${icon('plan')}</button>`}
     </header>
-    ${app.mode === 'demo' ? `<div class="demo"><span><b>Demo</b> · sample data, nothing is saved</span><button class="linkbtn" type="button" data-act="exit-demo" id="exit-demo">Exit demo</button></div>` : ''}
+    ${app.mode === 'demo' ? `<div class="demo demo-bar"><span><b>Demo</b> · sample data, nothing is saved</span>
+      <span class="demo-ctl"><span class="seg-sm" role="group" aria-label="View as"><button type="button" data-act="demo-role" data-role="parent" id="dr-parent" aria-pressed="${ROLE === 'parent'}">Parent</button><button type="button" data-act="demo-role" data-role="viewer" id="dr-viewer" aria-pressed="${ROLE === 'viewer'}">${esc(childName())}</button></span>
+      <button class="linkbtn" type="button" data-act="demo-reset" id="demo-reset">Reset</button></span></div>` : ''}
     <main id="view" class="stack">${view}</main>
   </div>
   <nav class="tabs" aria-label="Main"><div class="in">
@@ -576,6 +580,7 @@ function renderParentTools(ym, t, sum) {
       <button class="btn" type="button" data-act="sheet-tasks" id="t-tasks">${icon('sliders', 'sm')}Tasks and values</button>
       ${m.closed ? `<button class="btn" type="button" data-act="sheet-close" id="t-close">${icon('unlock', 'sm')}Reopen month</button>` : `<button class="btn" type="button" data-act="sheet-close" id="t-close" ${ended ? '' : 'disabled title="Available after the month ends"'}>${icon('flag', 'sm')}Close month</button>`}
       <button class="btn" type="button" data-act="sheet-backup" id="t-backup">${icon('download', 'sm')}Backup and reset</button>
+      ${app.mode === 'demo' ? '' : `<a class="btn" href="/demo" id="t-demo">${icon('plan', 'sm')}Demo with sample data</a>`}
       ${app.mode === 'demo' ? `<button class="btn" type="button" data-act="exit-demo" id="t-exit">${icon('logout', 'sm')}Exit demo</button>` : `<button class="btn" type="button" data-act="signout" id="t-signout">${icon('logout', 'sm')}Sign out</button>`}
     </div>
     <p class="note">Tap a calendar day or week above to mark tasks completed, not completed or excused. ${cdCount === 0 ? '<strong>No college days chosen for this month yet.</strong>' : ''}</p>
@@ -862,6 +867,7 @@ function sheetBackup() {
 }
 
 function exitDemo() {
+  if (PAGE === 'demo') { location.href = '/parent'; return; }
   app.S = C.emptyState(); app.shownEarned = null; app.mode = 'loading'; render(); load();
 }
 
@@ -880,6 +886,8 @@ document.addEventListener('click', async (e) => {
   if (act === 'act-cat') { app.actCat = el.dataset.cat; return render(); }
   if (act === 'demo') { app.S = buildDemo(); app.mode = 'demo'; app.tab = 'home'; app.shownEarned = null; return render(); }
   if (act === 'exit-demo') return exitDemo();
+  if (act === 'demo-role') { ROLE = el.dataset.role; app.parent = ROLE === 'parent'; app.tab = 'home'; app.shownEarned = null; closeSheet(); render(); window.scrollTo(0, 0); return; }
+  if (act === 'demo-reset') { app.S = buildDemo(); app.shownEarned = null; render(); toast('Demo data reset'); return; }
   if (act === 'view-day') return sheetViewDay(el.dataset.date);
   if (act === 'view-week') return sheetViewWeek(el.dataset.mon);
   if (act === 'reload') { app.mode = 'loading'; render(); return load(); }

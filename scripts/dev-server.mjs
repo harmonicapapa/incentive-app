@@ -36,7 +36,7 @@ http.createServer(async (req, res) => {
     res.end(Buffer.from(await response.arrayBuffer()));
     return;
   }
-  let path = url.pathname === '/' ? '/index.html' : url.pathname === '/parent' ? '/parent.html' : url.pathname;
+  let path = url.pathname === '/' ? '/index.html' : url.pathname === '/parent' ? '/parent.html' : url.pathname === '/demo' ? '/demo.html' : url.pathname;
   const file = normalize(join(root, 'public', path));
   if (!file.startsWith(join(root, 'public'))) { res.writeHead(403); return res.end(); }
   try { const body = await readFile(file); res.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream' }); res.end(body); }
