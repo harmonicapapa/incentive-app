@@ -36,6 +36,7 @@ const ICONS = {
   check: P(['M20 6 9 17l-5-5']),
   bath: P(['M10 4 8 6', 'M17 19v2', 'M2 12h20', 'M7 19v2', 'M9 5 7.621 3.621A2.121 2.121 0 0 0 4 5v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5']),
   pill: P(['m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z', 'm8.5 8.5 7 7']),
+  award: P(['m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526', '<circle cx="12" cy="8" r="6"/>']),
   calc: P(['<rect width="16" height="20" x="4" y="2" rx="2"/>', 'M8 6h8', 'M16 14v4', 'M16 10h.01', 'M12 10h.01', 'M8 10h.01', 'M12 14h.01', 'M8 14h.01', 'M12 18h.01', 'M8 18h.01']),
   settings: P(['M20 7h-9', 'M14 17H5', '<circle cx="17" cy="17" r="3"/>', '<circle cx="7" cy="7" r="3"/>']),
   home: P(['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']),
@@ -337,18 +338,19 @@ function progressCard(sum, compact) {
   const canBest = !sum.released && b && b.days > 0 && sum.planned > 0;
   const showBest = bestCaseOn(sum);
   const collegeV = T('college').valuePence;
-  const strip = C.LADDER.map((l) => {
+  const strip = [...C.LADDER].reverse().map((l) => {
     const cur = sum.level && sum.level.key === l.key;
     const gone = sum.level ? l.maxMissed < sum.missed : sum.planned > 0;
-    return `<div class="lvl ${cur ? 'cur' : ''} ${gone ? 'gone' : ''}"><strong class="num">${moneyShort(l.bonusPence)}</strong><span>${l.maxMissed === 0 ? '0 missed' : `${l.maxMissed - 1}–${l.maxMissed} missed`}</span></div>`;
+    return `<div class="lvl t-${l.tier} ${cur ? 'cur' : ''} ${gone ? 'gone' : ''}">${icon('award', 'medal')}<strong class="num">${moneyShort(l.bonusPence)}</strong><span class="tn">${l.tierLabel}</span><span>${l.maxMissed === 0 ? '0 missed' : `${l.maxMissed - 1}–${l.maxMissed} missed`}</span></div>`;
   }).join('');
+  const tierPill = (txt) => sum.level ? `<span class="pill tierpill t-${sum.level.tier}">${icon('award', 'sm')}${sum.level.tierLabel} · ${txt}</span>` : '';
   let note;
   if (sum.planned === 0) note = `<span class="muted">No college days in this month's plan yet.</span>`;
   else if (!sum.level) note = `<span class="muted">${sum.missed} days missed this month, so no attendance bonus. Every day attended still adds ${moneyShort(collegeV)}.</span>`;
-  else if (showBest) note = `<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus kept</span>
+  else if (showBest) note = `${tierPill(moneyShort(sum.bonus) + ' bonus kept')}
       <span class="muted">Attending all <strong class="num" style="color:var(--ink)">${b.days}</strong> remaining college day${b.days === 1 ? '' : 's'} keeps you on the ${moneyShort(sum.bonus)} level and adds ${moneyShort(b.extraPence)} for the days: <strong class="num" style="color:var(--ink)">${money(sum.bonus + b.extraPence)}</strong> from college still to come.</span>`;
   else {
-    const parts = [`<span class="pill">${icon('unlock', 'sm')}${moneyShort(sum.bonus)} bonus ${sum.released ? 'released ' + esc(rel) : 'on track · paid ' + esc(rel)}</span>`];
+    const parts = [tierPill(`${moneyShort(sum.bonus)} ${sum.released ? 'released ' + esc(rel) : 'on track · paid ' + esc(rel)}`)];
     if (!sum.released) {
       if (sum.allowance > 0) parts.push(`<span class="muted">You can miss <strong class="num" style="color:var(--ink)">${sum.allowance}</strong> more day${sum.allowance === 1 ? '' : 's'} and keep ${moneyShort(sum.bonus)}.</span>`);
       else if (sum.remainingDays > 0) parts.push(`<span class="muted">Don't miss any more college days to keep ${moneyShort(sum.bonus)}${sum.lower ? `; one more miss moves you to ${moneyShort(sum.lower.bonusPence)}` : '; one more miss means no bonus'}.</span>`);
@@ -357,7 +359,7 @@ function progressCard(sum, compact) {
   }
   const sub = `${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days yet'} · ${sum.missed} missed${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}`;
   return `<section class="card" aria-label="Monthly progress">
-    <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3><span class="pct num">${sum.planned ? moneyShort(sum.bonus) : '–'}</span></div>
+    <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3>${sum.level ? `<span class="medal-badge t-${sum.level.tier}">${icon('award', 'sm')}<span class="num">${moneyShort(sum.bonus)}</span></span>` : `<span class="pct num">${sum.planned ? '£0' : '–'}</span>`}</div>
     <div class="note" style="margin-top:2px">${sub}</div>
     ${sum.planned ? `<div class="lvls" role="img" aria-label="Attendance bonus levels: £50 for no days missed, £30 for 1 to 2, £20 for 3 to 4, £10 for 5 to 6. ${sum.missed} missed so far; current level ${moneyShort(sum.bonus)}.">${strip}</div>` : ''}
     <div class="prog-note">${note}</div>
@@ -590,7 +592,7 @@ function renderPlan(t) {
     const cur = sum.level && sum.level.key === l.key;
     const gone = sum.level ? l.maxMissed < sum.missed : sum.planned > 0;
     const status = cur ? (sum.released ? 'Released ' + shortDateNoDay(sum.releaseDate) : 'Current level · paid ' + shortDateNoDay(sum.releaseDate)) : gone ? 'Not available this month' : 'If more days are missed';
-    return `<div class="rung ${cur ? 'on' : ''}">${icon(cur ? 'unlock' : 'lock')}<div class="body"><div><strong>${esc(l.label)}</strong></div><div class="small muted">${status}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
+    return `<div class="rung t-${l.tier} ${cur ? 'on' : ''} ${gone ? 'gone' : ''}"><span class="rmedal">${icon('award')}</span><div class="body"><div><strong>${l.tierLabel}</strong> <span class="muted small">· ${esc(l.label)}</span></div><div class="small muted">${status}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
   };
   const ended = t > C.monthEnd(ym);
   const monthResult = ended ? `<p class="small" style="margin:10px 0 0">You earned <strong class="num">${money(sum.total)}</strong> this month.</p>` : `<p class="small muted" style="margin:10px 0 0">Indicative so far: <strong class="num" style="color:var(--ink)">${money(sum.total)}</strong></p>`;

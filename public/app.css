@@ -321,3 +321,39 @@ a.btn{text-decoration:none;color:inherit}
 .balance.proj{box-shadow:inset 0 0 0 2px var(--green-on-navy)}
 .proj-line{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;font-size:13px;margin:-8px 0 12px;color:var(--navy-soft)}
 .proj-line .plus{color:var(--green-on-navy);font-weight:700}
+
+/* ---- achievement tiers: bronze → silver → gold → platinum ---- */
+:root{
+  --bronze-a:#F3C9A2; --bronze-b:#B8743C; --bronze-ink:#4E2A0E; --bronze-edge:#9A5A26;
+  --silver-a:#FBFCFE; --silver-b:#AEB7C4; --silver-ink:#2D3542; --silver-edge:#8C96A5;
+  --gold-a:#FFEAA0; --gold-b:#D7A21E; --gold-ink:#4A3300; --gold-edge:#B8860B;
+  --plat-a:#F2FBFF; --plat-b:#8EC5E8; --plat-ink:#123A55; --plat-edge:#5E9EC7;
+}
+.t-bronze{--ta:var(--bronze-a);--tb:var(--bronze-b);--tink:var(--bronze-ink);--tedge:var(--bronze-edge)}
+.t-silver{--ta:var(--silver-a);--tb:var(--silver-b);--tink:var(--silver-ink);--tedge:var(--silver-edge)}
+.t-gold{--ta:var(--gold-a);--tb:var(--gold-b);--tink:var(--gold-ink);--tedge:var(--gold-edge)}
+.t-platinum{--ta:var(--plat-a);--tb:var(--plat-b);--tink:var(--plat-ink);--tedge:var(--plat-edge)}
+
+.lvls{align-items:end}
+.lvl{position:relative;border-color:color-mix(in srgb,var(--tedge) 45%,var(--line));padding:8px 4px 7px;transition:transform .2s ease,box-shadow .2s ease}
+.lvl .medal{width:18px;height:18px;margin:0 auto 2px;color:var(--tedge)}
+.lvl .tn{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--tedge)}
+.lvl.cur{background:linear-gradient(145deg,var(--ta) 0%,var(--tb) 100%);border-color:var(--tedge);box-shadow:0 0 0 2px color-mix(in srgb,var(--tedge) 40%,transparent),0 6px 18px color-mix(in srgb,var(--tb) 45%,transparent);transform:translateY(-3px) scale(1.04);z-index:1}
+.lvl.cur strong,.lvl.cur span,.lvl.cur .tn,.lvl.cur .medal{color:var(--tink)}
+.lvl.cur strong{font-size:16px}
+.lvl.cur::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(115deg,transparent 30%,rgba(255,255,255,.55) 45%,transparent 60%);background-size:250% 100%;animation:shine 3.2s ease-in-out infinite;pointer-events:none}
+@keyframes shine{0%{background-position:120% 0}60%,100%{background-position:-60% 0}}
+.lvl.gone{opacity:.35}
+.lvl.gone strong{text-decoration:line-through}
+
+.medal-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px 4px 8px;border-radius:999px;background:linear-gradient(145deg,var(--ta),var(--tb));color:var(--tink);border:1px solid var(--tedge);font-weight:700;font-size:18px;box-shadow:0 3px 10px color-mix(in srgb,var(--tb) 40%,transparent)}
+.medal-badge .ic{color:var(--tink)}
+.pill.tierpill{background:linear-gradient(145deg,var(--ta),var(--tb));color:var(--tink);border:1px solid var(--tedge)}
+
+.ladder .rung .rmedal{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;flex:none;background:color-mix(in srgb,var(--ta) 55%,var(--surface));border:1.5px solid color-mix(in srgb,var(--tedge) 55%,var(--line));color:var(--tedge)}
+.ladder .rung.on .rmedal{background:linear-gradient(145deg,var(--ta),var(--tb));border-color:var(--tedge);color:var(--tink);box-shadow:0 3px 10px color-mix(in srgb,var(--tb) 45%,transparent)}
+.ladder .rung.on{background:color-mix(in srgb,var(--ta) 22%,transparent);border-radius:8px;padding-inline:8px;margin-inline:-8px}
+.ladder .rung.gone{opacity:.5}
+.ladder .rung .ic{color:inherit}
+@media (prefers-reduced-motion: reduce){.lvl.cur{transform:none}.lvl.cur::after{display:none}}
+.ladder .rung.on .rmedal .ic,.ladder .rung .rmedal .ic{color:inherit}

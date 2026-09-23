@@ -13,10 +13,10 @@
   };
   // Attendance bonus: based on college days MISSED this month (excused days never count as missed).
   const LADDER = [
-    { key: 0, maxMissed: 0, label: 'No days missed', bonusPence: 5000 },
-    { key: 2, maxMissed: 2, label: '1–2 days missed', bonusPence: 3000 },
-    { key: 4, maxMissed: 4, label: '3–4 days missed', bonusPence: 2000 },
-    { key: 6, maxMissed: 6, label: '5–6 days missed', bonusPence: 1000 },
+    { key: 0, maxMissed: 0, label: 'No days missed', bonusPence: 5000, tier: 'platinum', tierLabel: 'Platinum' },
+    { key: 2, maxMissed: 2, label: '1–2 days missed', bonusPence: 3000, tier: 'gold', tierLabel: 'Gold' },
+    { key: 4, maxMissed: 4, label: '3–4 days missed', bonusPence: 2000, tier: 'silver', tierLabel: 'Silver' },
+    { key: 6, maxMissed: 6, label: '5–6 days missed', bonusPence: 1000, tier: 'bronze', tierLabel: 'Bronze' },
   ];
 
   // ---------- dates (household dates are YYYY-MM-DD strings in Europe/London) ----------
