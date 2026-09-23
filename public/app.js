@@ -305,6 +305,17 @@ function renderApp() {
   </div></nav>`;
 }
 
+function todayLine(sum) {
+  const t = today();
+  if (C.monthOf(t) !== sum.ym) return '';
+  const e = C.earnedToday(app.S, t);
+  const sign = e.totalPence > 0 ? '+' : e.totalPence < 0 ? '−' : '';
+  const cls = e.totalPence > 0 ? 'pos' : e.totalPence < 0 ? 'neg' : 'zero';
+  const bits = [];
+  if (e.tasksPence) bits.push(`+${money(e.tasksPence)} from ${e.count} task${e.count === 1 ? '' : 's'}`);
+  if (e.bonusDeltaPence) bits.push(`−${money(-e.bonusDeltaPence)} bonus (${e.fromLevel ? e.fromLevel.tierLabel : 'none'} → ${e.toLevel ? e.toLevel.tierLabel : 'no bonus'})`);
+  return `<div class="today-line ${cls}"><span class="tl-lbl">Earned today</span><strong class="num">${sign}${money(Math.abs(e.totalPence))}</strong>${bits.length ? `<span class="tl-bits">${bits.join(' · ')}</span>` : `<span class="tl-bits">Nothing recorded yet today</span>`}</div>`;
+}
 function bestCaseOn(sum) {
   return app.bestCase && !sum.released && sum.best && sum.best.days > 0 && sum.planned > 0 && !!sum.level;
 }
@@ -319,6 +330,7 @@ function balanceCard(sum, L) {
   return `<section class="balance ${proj ? 'proj' : ''}" aria-label="Indicative payment this month">
     <div class="lbl">${proj ? `If you attend every remaining college day · ${month}` : `Indicative payment · ${month}`}</div>
     <div class="amt num" id="bal-amt" data-v="${total}">£${pounds}<span class="pence">.${pence}</span></div>
+    ${todayLine(sum)}
     ${proj ? `<div class="proj-line num"><span>${money(already)} so far</span><span class="plus">+ ${money(extra)}</span><span class="muted-on-navy">for ${sum.best.days} college day${sum.best.days === 1 ? '' : 's'} to go</span></div>` : ''}
     <div class="row">
       <div><span>Tasks earned</span><strong class="num">${money(sum.earned)}</strong></div>

@@ -357,3 +357,11 @@ a.btn{text-decoration:none;color:inherit}
 .ladder .rung .ic{color:inherit}
 @media (prefers-reduced-motion: reduce){.lvl.cur{transform:none}.lvl.cur::after{display:none}}
 .ladder .rung.on .rmedal .ic,.ladder .rung .rmedal .ic{color:inherit}
+
+/* earned today (balance card) */
+.today-line{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;margin:-6px 0 14px;padding:8px 10px;border-radius:6px;background:rgba(255,255,255,.08)}
+.today-line .tl-lbl{font-size:12.5px;color:var(--navy-soft)}
+.today-line strong{font-size:18px}
+.today-line.pos strong{color:var(--green-on-navy)}
+.today-line.neg strong{color:#F4B37A}
+.today-line .tl-bits{flex-basis:100%;font-size:12px;color:var(--navy-soft)}

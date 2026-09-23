@@ -55,6 +55,13 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
   const k = C.collegeStakeToday(S, cd[8]); eq('stake attended', k.status, 'attended'); eq('stake attended keeps', k.totalPence, 2500);
   eq('no stake on non-college day', C.collegeStakeToday(S, '2026-10-03'), null);
 }
+// Earned today, including a bonus drop from missing today's college day
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 8).forEach(d => done(S, 'college', d)); const d = cd[8];
+  done(S, 'morning', d); let e = C.earnedToday(S, d); eq('today tasks', e.totalPence, 300);
+  done(S, 'college', d); e = C.earnedToday(S, d); eq('today tasks + college', e.totalPence, 800); eq('no bonus change when attended', e.bonusDeltaPence, 0);
+  S.occ[C.occId('college', d)] = { id: C.occId('college', d), taskId: 'college', localDate: d, status: 'missed', valuePence: 0 };
+  e = C.earnedToday(S, d); eq('miss drops platinum->gold', e.bonusDeltaPence, -2000); eq('today net negative', e.totalPence, -1700); eq('from tier', e.fromLevel.tier, 'platinum'); eq('to tier', e.toLevel.tier, 'gold');
+}
 // No college days planned -> no bonus; planned but none yet -> £50 level
 { const S = mk(); eq('no plan', C.monthSummary(S, '2026-10', '2026-10-01').bonus, 0);
   college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet counted', s.counted, 0); eq('none yet level', s.bonus, 5000); eq('none next', s.next, null); }

@@ -213,6 +213,24 @@
     return { status, dayPence, bonusIfGo, bonusIfMiss, bonusDropPence: bonusIfGo - bonusIfMiss, totalPence: dayPence + bonusIfGo - bonusIfMiss, missedNow: cp.missed, missedIfMiss, releaseDate: cp.releaseDate };
   }
 
+  /**
+   * Money earned today: completions recorded for today, plus any change to the attendance bonus
+   * caused by today's college day (a recorded miss can drop a level, so this can be negative).
+   */
+  function earnedToday(S, today) {
+    const done = Object.values(S.occ).filter((o) => o.localDate === today && o.status === 'completed');
+    const tasksPence = done.reduce((s, o) => s + o.valuePence, 0);
+    const ym = monthOf(today);
+    const cp = collegeProgress(S, ym, today);
+    let bonusDeltaPence = 0, fromLevel = cp.level, toLevel = cp.level;
+    const o = S.occ[occId('college', today)];
+    if (collegeDates(S, ym).includes(today) && o && o.status === 'missed' && today >= planStart(S)) {
+      fromLevel = levelFor(cp.missed - 1);
+      bonusDeltaPence = (cp.level ? cp.level.bonusPence : 0) - (fromLevel ? fromLevel.bonusPence : 0);
+    }
+    return { tasksPence, bonusDeltaPence, totalPence: tasksPence + bonusDeltaPence, count: done.length, fromLevel, toLevel };
+  }
+
   /** Tasks shown on Home for `today`. */
   function todayTasks(S, today) {
     const ym = monthOf(today);
@@ -316,7 +334,7 @@
 
   const api = {
     TZ, TASK_IDS, WEEKLY_IDS, isWeekly, migrateSettings, DEFAULT_TASKS, LADDER, todayLondon, addDays, weekday, mondayOf, monthOf, daysInMonth, monthDates, monthStart, monthEnd, shiftMonth,
-    emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, levelFor, bonusForMissed, collegeStakeToday, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
+    emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, levelFor, bonusForMissed, collegeStakeToday, earnedToday, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
     validateImport, collegeDates, collegeProgress,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;
