@@ -2,3 +2,4 @@ node_modules/
 .netlify/
 *.zip
 .DS_Store
+Claude outputs/
