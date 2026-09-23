@@ -37,6 +37,10 @@ const ICONS = {
   bath: P(['M10 4 8 6', 'M17 19v2', 'M2 12h20', 'M7 19v2', 'M9 5 7.621 3.621A2.121 2.121 0 0 0 4 5v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5']),
   pill: P(['m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z', 'm8.5 8.5 7 7']),
   award: P(['m15.477 12.89 1.515 8.526a.5.5 0 0 1-.81.47l-3.58-2.687a1 1 0 0 0-1.197 0l-3.586 2.686a.5.5 0 0 1-.81-.469l1.514-8.526', '<circle cx="12" cy="8" r="6"/>']),
+  flame: P(['M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z']),
+  coin: P(['<circle cx="12" cy="12" r="9"/>', 'M14.5 8.5a2.5 2.5 0 0 0-5 0V16h6', 'M8 12.5h5']),
+  sparkle: P(['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z']),
+  target: P(['<circle cx="12" cy="12" r="10"/>', '<circle cx="12" cy="12" r="6"/>', '<circle cx="12" cy="12" r="2"/>']),
   calc: P(['<rect width="16" height="20" x="4" y="2" rx="2"/>', 'M8 6h8', 'M16 14v4', 'M16 10h.01', 'M12 10h.01', 'M8 10h.01', 'M12 14h.01', 'M8 14h.01', 'M12 18h.01', 'M8 18h.01']),
   settings: P(['M20 7h-9', 'M14 17H5', '<circle cx="17" cy="17" r="3"/>', '<circle cx="7" cy="7" r="3"/>']),
   home: P(['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']),
@@ -94,6 +98,7 @@ function applyServerState(state) {
   app.S.settings = C.migrateSettings(app.S.settings);
   if (app.mode !== 'demo') app.mode = app.S.settings ? 'live' : (ROLE === 'parent' ? 'welcome' : 'notset');
   render();
+  celebrateNew();
 }
 async function load() {
   try {
@@ -202,6 +207,7 @@ async function complete(taskId, date) {
   const o = { id, taskId, localDate: t, status: 'completed', valuePence: v, completedAt: ts, updatedAt: ts, by: 'parent' };
   try {
     await ops.setOcc(o);
+    celebrate(document.getElementById('c-' + taskId), v);
     toast(`${moneyShort(v)} added${t === today() ? '' : ' for ' + shortDate(t)}`, { undo: () => undoCompletion(o) });
   } catch (e) { /* server state reloaded */ }
   finally { app.pending.delete(id); render(); }
@@ -306,12 +312,14 @@ function renderWelcome() {
 function renderApp() {
   const t = today();
   const h = hourLondon();
-  const greet = ROLE === 'parent' ? 'Parent portal' : `${h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening'}, ${childName()}`;
+  const greet = ROLE === 'parent' ? 'Parent portal' : `${h < 12 ? 'Morning' : h < 18 ? 'Hey' : 'Evening'}, ${childName()}!`;
+  const stk = (app.mode === 'live' || app.mode === 'demo') ? C.streak(app.S, t) : { days: 0, doneToday: false };
   const view = app.tab === 'home' ? renderHome(t) : app.tab === 'activity' ? renderActivity(t) : renderPlan(t);
   return `<div class="shell">
     <header class="top">
       <div><h1>${greet}</h1><div class="date">${esc(longDate(t))}</div></div>
-      ${ROLE === 'parent' && app.mode === 'live' ? `<button class="iconbtn" type="button" data-act="signout" aria-label="Sign out" title="Sign out" id="hdr-signout">${icon('logout')}</button>` : `<button class="iconbtn" type="button" data-act="tab" data-tab="plan" data-scroll="settings" aria-label="Plan" title="Plan" id="hdr-settings">${icon('plan')}</button>`}
+      <span class="hdr-right">${(app.mode === 'live' || app.mode === 'demo') ? `<span class="streak ${stk.doneToday ? 'lit' : ''} ${stk.days ? '' : 'cold'}" title="${stk.days}-day morning streak${stk.doneToday ? '' : ' · keep it going today'}" aria-label="${stk.days}-day morning streak">${icon('flame')}<b class="num">${stk.days}</b></span>` : ''}
+      ${ROLE === 'parent' && app.mode === 'live' ? `<button class="iconbtn" type="button" data-act="signout" aria-label="Sign out" title="Sign out" id="hdr-signout">${icon('logout')}</button>` : `<button class="iconbtn" type="button" data-act="tab" data-tab="plan" data-scroll="settings" aria-label="Plan" title="Plan" id="hdr-settings">${icon('plan')}</button>`}</span>
     </header>
     ${app.mode === 'demo' ? `<div class="demo demo-bar"><span><b>Demo</b> · sample data, nothing is saved</span>
       <span class="demo-ctl"><span class="seg-sm" role="group" aria-label="View as"><button type="button" data-act="demo-role" data-role="parent" id="dr-parent" aria-pressed="${ROLE === 'parent'}">Parent</button><button type="button" data-act="demo-role" data-role="viewer" id="dr-viewer" aria-pressed="${ROLE === 'viewer'}">${esc(childName())}</button></span>
@@ -321,6 +329,74 @@ function renderApp() {
   <nav class="tabs" aria-label="Main"><div class="in">
     ${[['home', 'Home'], ['activity', 'Activity'], ['plan', ROLE === 'parent' ? 'Plan' : 'Calendar']].map(([k, l]) => `<button type="button" id="tab-${k}" data-act="tab" data-tab="${k}" ${app.tab === k ? 'aria-current="page"' : ''}>${icon(k === 'home' ? 'home' : k === 'activity' ? 'activity' : 'plan')}${l}</button>`).join('')}
   </div></nav>`;
+}
+
+function goalCard(t, items) {
+  const daily = items.filter((i) => !i.weekly && i.status !== 'excused');
+  const goal = daily.length;
+  if (!goal) return '';
+  const done = daily.filter((i) => i.status === 'completed').length;
+  const extra = items.filter((i) => i.weekly && i.status === 'completed' && app.S.occ[i.occId] && app.S.occ[i.occId].localDate === t).length;
+  const pct = done / goal, r = 22, circ = 2 * Math.PI * r;
+  const msg = done === goal ? (extra ? 'Daily goal smashed. Bonus quest done too!' : 'Daily goal complete. Nice work!') : done === 0 ? `Let's go! ${goal} thing${goal === 1 ? '' : 's'} to do today.` : `${goal - done} more to hit today's goal.`;
+  return `<section class="card goal ${done === goal ? 'done' : ''}" aria-label="Daily goal">
+    <svg class="ring" viewBox="0 0 56 56" aria-hidden="true"><circle cx="28" cy="28" r="${r}" class="ring-bg"/><circle cx="28" cy="28" r="${r}" class="ring-fg" stroke-dasharray="${circ}" stroke-dashoffset="${circ * (1 - pct)}"/></svg>
+    <div class="goal-body"><div class="goal-t">Daily goal <b class="num">${done}/${goal}</b>${extra ? ` <span class="goal-plus">+${extra} quest</span>` : ''}</div><div class="goal-s">${msg}</div></div>
+    ${done === goal ? `<span class="goal-star">${icon('sparkle')}</span>` : ''}
+  </section>`;
+}
+
+function questsCard(t) {
+  const ym = C.monthOf(t);
+  const rows = C.WEEKLY_IDS.map((id) => {
+    const w = C.weeklyInfo(app.S, ym, id);
+    const o = app.S.occ[`${id}_W${C.mondayOf(t)}`];
+    const thisWeek = o && o.status === 'completed';
+    const pct = w.slots ? Math.min(100, (w.paid.length / w.slots) * 100) : 0;
+    const complete = w.slots && w.paid.length >= w.slots;
+    return `<div class="quest ${complete ? 'complete' : ''}"><span class="q-ico tico tk-${id}">${icon(id)}</span>
+      <div class="q-body"><div class="q-top"><strong>${esc(T(id).label)}</strong><span class="q-reward num">+${moneyShort(T(id).valuePence)}</span></div>
+      <div class="q-bar"><i style="width:${pct}%"></i><span class="num">${w.paid.length}/${w.slots}</span></div>
+      <div class="q-sub">${complete ? 'Quest complete this month!' : thisWeek ? 'Done this week' : 'Open this week'}</div></div></div>`;
+  }).join('');
+  return `<div class="section-h"><h2>Weekly quests</h2><span class="small muted">Resets each month</span></div><section class="card quests">${rows}</section>`;
+}
+
+function achievementsCard(t) {
+  const list = C.achievements(app.S, t);
+  const got = list.filter((a) => a.earned).length;
+  return `<section class="card" aria-label="Achievements"><div class="prog-top" style="margin-bottom:10px"><h3>Achievements</h3><span class="small muted">${got} of ${list.length}</span></div>
+    <div class="badges">${list.map((a) => `<div class="badge ${a.earned ? 'on' : ''}" title="${esc(a.desc)}"><span class="b-ico">${icon(a.icon)}</span><strong>${esc(a.title)}</strong><span>${a.earned ? esc(a.desc) : (a.progress ? esc(a.progress) + ' · ' : '') + esc(a.desc)}</span></div>`).join('')}</div></section>`;
+}
+
+// ---- celebrations ----
+function celebrate(anchor, amountPence) {
+  if (reduceMotion()) return;
+  const layer = document.createElement('div'); layer.className = 'fx'; document.body.appendChild(layer);
+  const r = anchor && anchor.getBoundingClientRect ? anchor.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight / 3, width: 0, height: 0 };
+  const x = r.left + r.width / 2, y = r.top + r.height / 2;
+  const colors = ['#58CC02', '#FFC800', '#1CB0F6', '#FF9600', '#CE82FF', '#FF4B4B'];
+  for (let i = 0; i < 26; i++) {
+    const c = document.createElement('i'); c.className = 'confetti';
+    const a = Math.random() * Math.PI * 2, d = 50 + Math.random() * 90;
+    c.style.cssText = `left:${x}px;top:${y}px;background:${colors[i % colors.length]};--dx:${Math.cos(a) * d}px;--dy:${Math.sin(a) * d - 40}px;--rot:${Math.random() * 720 - 360}deg`;
+    layer.appendChild(c);
+  }
+  if (amountPence) { const f = document.createElement('b'); f.className = 'coinfloat'; f.textContent = '+' + moneyShort(amountPence); f.style.cssText = `left:${x}px;top:${y}px`; layer.appendChild(f); }
+  setTimeout(() => layer.remove(), 1400);
+}
+// LieLie's view: celebrate completions added since she last looked
+function celebrateNew() {
+  if (ROLE !== 'viewer' || app.mode !== 'live') return;
+  const ids = Object.values(app.S.occ).filter((o) => o.status === 'completed').map((o) => o.id);
+  let seen = null;
+  try { seen = JSON.parse(localStorage.getItem('earned-seen') || 'null'); } catch (e) { /* storage unavailable */ }
+  try { localStorage.setItem('earned-seen', JSON.stringify(ids)); } catch (e) { /* ignore */ }
+  if (!seen) return;
+  const fresh = ids.filter((id) => !seen.includes(id)).map((id) => app.S.occ[id]);
+  if (!fresh.length) return;
+  const total = fresh.reduce((s, o) => s + o.valuePence, 0);
+  setTimeout(() => { celebrate(document.getElementById('bal-amt'), total); toast(fresh.length === 1 ? `${T(fresh[0].taskId).label} ticked: +${moneyShort(total)}!` : `${fresh.length} tasks ticked: +${moneyShort(total)}!`); }, 250);
 }
 
 function todayLine(sum) {
@@ -454,7 +530,7 @@ function taskRow(item, viewDate) {
     control = `<button class="cbtn" type="button" data-act="complete" data-task="${item.taskId}" data-date="${viewDate || today()}" id="c-${item.taskId}" aria-label="Mark ${esc(d.label)} complete${past ? ' for ' + esc(shortDate(viewDate)) : ''}, ${moneyShort(item.valuePence)}" title="${can ? 'Mark complete' : 'This month is closed'}" ${app.readOnly || app.pending.has(item.occId) || !can ? 'disabled' : ''}>${icon('check')}</button>`;
   }
   return `<div class="task ${done ? 'done' : ''} ${quiet ? 'quiet' : ''}">
-    <div class="tico">${icon(item.taskId)}</div>
+    <div class="tico tk-${item.taskId}">${icon(item.taskId)}</div>
     <div class="body"><div class="t">${esc(d.label)}</div><div class="s">${done ? (item.weekly ? esc(sub) : 'Completed' + (sub ? ' · ' + esc(sub) : '')) : esc(sub)}</div></div>
     <span class="v num">${done ? '+' : ''}${moneyShort(item.valuePence)}</span>
     ${control}
@@ -493,10 +569,12 @@ function renderHome(t) {
     : `<h2>Today</h2>`;
   return `
     ${balanceCard(sum, L)}
+    ${hd === t ? goalCard(t, items) : ''}
     ${stakeCard(t)}
     ${progressCard(sum, true)}
     <div class="section-h">${dayNav}</div>
     <section class="card" style="padding:0">${todayHtml}</section>
+    ${questsCard(t)}
     <section class="card payout" aria-label="Next payment">
       <div class="tico">${icon('banknote')}</div>
       <div class="body"><div class="small muted">${fri === t ? 'Payment day · today' : 'Next payment · ' + esc(fmtD(fri, { weekday: 'long', day: 'numeric', month: 'short' }))}</div>
@@ -516,7 +594,7 @@ function txRow(a, t, clickable) {
   else { ico = 'correction'; title = d ? d.label : 'Task'; sub = `Corrected · ${STATUS_LABEL[a.from] || a.from} → ${STATUS_LABEL[a.to] || a.to} · ${shortDate(a.date)}`; amt = a.from === 'completed' ? `<span class="a struck num">${money(a.amountPence)}</span>` : a.to === 'completed' ? `<span class="a pos num">+${money(a.amountPence)}</span>` : `<span class="a num muted">£0.00</span>`; }
   const tag = clickable ? 'button' : 'div';
   const attrs = clickable ? ` type="button" data-act="edit-occ" data-occ="${esc(a.occId)}" id="tx-${esc(a.id)}" aria-label="Correct ${esc(title)} on ${esc(shortDate(a.date))}"` : '';
-  return `<${tag} class="tx"${attrs}><div class="tico">${icon(ico, 'sm')}</div><div class="body"><div class="t">${esc(title)}</div><div class="s">${esc(sub)}</div></div>${amt}</${tag}>`;
+  return `<${tag} class="tx"${attrs}><div class="tico tk-${ico}">${icon(ico, 'sm')}</div><div class="body"><div class="t">${esc(title)}</div><div class="s">${esc(sub)}</div></div>${amt}</${tag}>`;
 }
 
 function renderActivity(t) {
@@ -664,6 +742,7 @@ function renderPlan(t) {
     </section>
     <section class="card" aria-label="By task"><div class="prog-top" style="margin-bottom:4px"><h3>By task</h3></div>${catRows}</section>
     <section class="card ladder" aria-label="Bonus ladder"><div class="prog-top" style="margin-bottom:4px"><h3>Attendance bonus</h3><span class="small muted">7+ missed: no bonus</span></div>${C.LADDER.map(rung).join('')}</section>
+    ${achievementsCard(t)}
     ${parent ? `<div class="section-h" id="settings"><h2>Parent tools</h2></div>${renderParentTools(ym, t, sum)}` : `<p class="note" id="settings">Read-only view. Updates every minute.</p>`}`;
 }
 

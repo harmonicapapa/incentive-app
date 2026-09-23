@@ -101,6 +101,13 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
   eq('bath cap blocks 5th', C.canComplete(S, 'bath', '2026-11-30', '2026-11-30'), false); eq('bath earned', C.monthSummary(S, '2026-11', '2026-12-01').byTask.bath.earned, 4000);
   eq('bath weekly id', C.occId('bath', '2026-11-05'), 'bath_W2026-11-02');
 }
+// Streaks and achievements (v2)
+{ const S = mk(); ['2026-10-01', '2026-10-02', '2026-10-03', '2026-10-05', '2026-10-06'].forEach(d => done(S, 'morning', d));
+  eq('streak alive until today ends', C.streak(S, '2026-10-07').days, 2); done(S, 'morning', '2026-10-07'); eq('streak incl today', C.streak(S, '2026-10-07').days, 3);
+  eq('streak broken', C.streak(S, '2026-10-09').days, 0); eq('best streak', C.bestStreak(S), 3);
+  exc(S, 'morning', '2026-10-04'); eq('excused keeps streak', C.streak(S, '2026-10-07').days, 6);
+  const a = Object.fromEntries(C.achievements(S, '2026-10-08').map(x => [x.id, x.earned])); eq('first coin', a.first, true); eq('on a roll', a.streak3, true); eq('week on fire not yet', a.streak7, false);
+}
 // Import validation
 eq('reject junk', C.validateImport({ a: 1 }).length > 0, true);
 eq('accept valid', C.validateImport({ app: 'earned-ledger', version: 1, settings: C.defaultSettings('2026-09-01'), months: { '2026-09': { collegeDates: ['2026-09-01'] } }, occurrences: [], payments: [], auditEvents: [] }), []);

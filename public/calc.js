@@ -236,6 +236,52 @@
     return { tasksPence, bonusDeltaPence, totalPence: tasksPence + bonusDeltaPence, count: done.length, fromLevel, toLevel, college };
   }
 
+  // ---------- gamification (v2) ----------
+  /** Consecutive days with the morning routine done. Today only breaks the streak once it's over. */
+  function streak(S, today) {
+    const done = (d) => { const o = S.occ[occId('morning', d)]; return o && o.status === 'completed'; };
+    const excused = (d) => { const o = S.occ[occId('morning', d)]; return o && o.status === 'excused'; };
+    let d = done(today) ? today : addDays(today, -1), n = 0;
+    const start = planStart(S);
+    while (d >= start && (done(d) || excused(d))) { if (done(d)) n++; d = addDays(d, -1); }
+    return { days: n, doneToday: done(today) };
+  }
+  function bestStreak(S) {
+    const days = Object.values(S.occ).filter((o) => o.taskId === 'morning' && o.status === 'completed').map((o) => o.localDate).sort();
+    let best = 0, run = 0, prev = null;
+    for (const d of days) { run = prev && addDays(prev, 1) === d ? run + 1 : 1; best = Math.max(best, run); prev = d; }
+    return best;
+  }
+  /** Badges earned from the ledger so far. */
+  function achievements(S, today) {
+    const occ = Object.values(S.occ);
+    const completed = occ.filter((o) => o.status === 'completed');
+    const best = Math.max(bestStreak(S), streak(S, today).days);
+    const months = new Set(completed.map((o) => monthOf(o.localDate))); Object.keys(S.months).forEach((m) => months.add(m));
+    let perfectWeek = false, sweep = false, quest = false, gold = false, platinum = false;
+    const weeks = new Set(completed.map((o) => mondayOf(o.localDate)));
+    for (const m of weeks) {
+      if (WEEKLY_IDS.every((id) => S.occ[`${id}_W${m}`] && S.occ[`${id}_W${m}`].status === 'completed')) sweep = true;
+      const days = [0, 1, 2, 3, 4, 5, 6].map((i) => addDays(m, i)).filter((d) => d < today && collegeDates(S, monthOf(d)).includes(d) && dayStatus(S, 'college', d, today) !== 'excused');
+      if (days.length >= 3 && days.every((d) => dayStatus(S, 'college', d, today) === 'completed')) perfectWeek = true;
+    }
+    for (const ym of months) {
+      if (WEEKLY_IDS.some((id) => weeklyInfo(S, ym, id).paid.length >= 4)) quest = true;
+      if (ym < monthOf(today)) { const b = monthSummary(S, ym, today).bonus; if (b >= 3000) gold = true; if (b >= 5000) platinum = true; }
+    }
+    return [
+      { id: 'first', title: 'First coin', desc: 'Complete your first task', earned: completed.length > 0, icon: 'coin' },
+      { id: 'streak3', title: 'On a roll', desc: '3-day morning streak', earned: best >= 3, icon: 'flame', progress: Math.min(best, 3) + '/3' },
+      { id: 'streak7', title: 'Week on fire', desc: '7-day morning streak', earned: best >= 7, icon: 'flame', progress: Math.min(best, 7) + '/7' },
+      { id: 'streak14', title: 'Unstoppable', desc: '14-day morning streak', earned: best >= 14, icon: 'flame', progress: Math.min(best, 14) + '/14' },
+      { id: 'perfectWeek', title: 'Perfect week', desc: 'Every college day in a week', earned: perfectWeek, icon: 'college' },
+      { id: 'sweep', title: 'Clean sweep', desc: 'All three weekly quests in one week', earned: sweep, icon: 'sparkle' },
+      { id: 'quest', title: 'Quest complete', desc: 'A weekly quest 4 times in a month', earned: quest, icon: 'target' },
+      { id: 'gold', title: 'Gold month', desc: 'Finish a month on Gold or better', earned: gold, icon: 'award' },
+      { id: 'platinum', title: 'Platinum month', desc: 'Finish a month with no college missed', earned: platinum, icon: 'award' },
+    ];
+  }
+
   /** Tasks shown on Home for `today`. */
   function todayTasks(S, today) {
     const ym = monthOf(today);
@@ -339,7 +385,7 @@
 
   const api = {
     TZ, TASK_IDS, WEEKLY_IDS, isWeekly, migrateSettings, DEFAULT_TASKS, LADDER, todayLondon, addDays, weekday, mondayOf, monthOf, daysInMonth, monthDates, monthStart, monthEnd, shiftMonth,
-    emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, levelFor, bonusForMissed, collegeStakeToday, earnedToday, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
+    emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, levelFor, bonusForMissed, collegeStakeToday, earnedToday, streak, bestStreak, achievements, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
     validateImport, collegeDates, collegeProgress,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;
