@@ -47,6 +47,14 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
   const s = C.monthSummary(S, '2026-10', cd[4]); eq('1 missed £30', s.bonus, 3000); eq('1 more allowed', s.allowance, 1);
   eq('best keeps level', s.best.bonus, 3000); eq('best extra', s.best.extraPence, 12 * 500);
 }
+// Cost of missing today's college day
+{ const cases = [[0, 2500], [1, 500], [2, 1500], [4, 1500], [6, 1500], [7, 500]];
+  for (const [m, cost] of cases) { const S = mk(); const cd = college16(S, '2026-10'); cd.slice(m, 8).forEach(d => done(S, 'college', d));
+    const k = C.collegeStakeToday(S, cd[8]); eq('stake open ' + m, k.status, 'open'); eq('stake cost missed ' + m, k.totalPence, cost); }
+  const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 9).forEach(d => done(S, 'college', d));
+  const k = C.collegeStakeToday(S, cd[8]); eq('stake attended', k.status, 'attended'); eq('stake attended keeps', k.totalPence, 2500);
+  eq('no stake on non-college day', C.collegeStakeToday(S, '2026-10-03'), null);
+}
 // No college days planned -> no bonus; planned but none yet -> £50 level
 { const S = mk(); eq('no plan', C.monthSummary(S, '2026-10', '2026-10-01').bonus, 0);
   college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet counted', s.counted, 0); eq('none yet level', s.bonus, 5000); eq('none next', s.next, null); }

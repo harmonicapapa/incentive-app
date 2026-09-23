@@ -193,6 +193,26 @@
     return { attended, counted, remainingDays, missed, planned, level, allowance, lower, rate, ratePct: Math.round(rate * 1000) / 10, bonus, unlocked, next, best, releaseDate, released: today >= releaseDate };
   }
 
+  /**
+   * What today's college day is worth: the day's own value plus any bonus level that would be lost
+   * if it were missed. Null when today isn't a college day in the plan.
+   */
+  function collegeStakeToday(S, today) {
+    const ym = monthOf(today);
+    if (today < planStart(S) || !collegeDates(S, ym).includes(today)) return null;
+    const st = dayStatus(S, 'college', today, today);
+    const o = S.occ[occId('college', today)];
+    const cp = collegeProgress(S, ym, today);
+    const dayPence = st === 'completed' && o ? o.valuePence : value(S, 'college');
+    const status = st === 'completed' ? 'attended' : st === 'excused' ? 'excused' : (o && st === 'missed') ? 'missed' : 'open';
+    // Missed count if today is (or was) missed.
+    const missedIfMiss = status === 'open' ? cp.missed + 1 : status === 'attended' ? cp.missed + 1 : cp.missed;
+    const missedIfGo = status === 'missed' ? cp.missed - 1 : status === 'open' ? cp.missed : cp.missed;
+    const levelIfGo = levelFor(missedIfGo), levelIfMiss = levelFor(missedIfMiss);
+    const bonusIfGo = levelIfGo ? levelIfGo.bonusPence : 0, bonusIfMiss = levelIfMiss ? levelIfMiss.bonusPence : 0;
+    return { status, dayPence, bonusIfGo, bonusIfMiss, bonusDropPence: bonusIfGo - bonusIfMiss, totalPence: dayPence + bonusIfGo - bonusIfMiss, missedNow: cp.missed, missedIfMiss, releaseDate: cp.releaseDate };
+  }
+
   /** Tasks shown on Home for `today`. */
   function todayTasks(S, today) {
     const ym = monthOf(today);
@@ -296,7 +316,7 @@
 
   const api = {
     TZ, TASK_IDS, WEEKLY_IDS, isWeekly, migrateSettings, DEFAULT_TASKS, LADDER, todayLondon, addDays, weekday, mondayOf, monthOf, daysInMonth, monthDates, monthStart, monthEnd, shiftMonth,
-    emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, levelFor, bonusForMissed, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
+    emptyState, defaultSettings, occId, planWeeks, weeklyInfo, dayStatus, levelFor, bonusForMissed, collegeStakeToday, monthSummary, todayTasks, canComplete, ledger, nextFriday, activity,
     validateImport, collegeDates, collegeProgress,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.Calc = api;

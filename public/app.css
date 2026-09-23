@@ -297,3 +297,16 @@ a.btn{text-decoration:none;color:inherit}
 .lvl.cur strong{color:var(--amber)}
 .lvl.gone{opacity:.45}
 .lvl.gone strong{text-decoration:line-through;font-weight:500}
+
+/* today's college stake */
+.stake-top{display:flex;gap:12px;align-items:flex-start}
+.stake-top .bdg{width:32px;height:32px;margin-top:2px}
+.stake-top .bdg .ic{width:16px;height:16px}
+.stake-top .t{font-weight:600;font-size:15px}
+.stake-top .s{font-size:13px;color:var(--ink-2);margin-top:2px}
+.stake-amt{color:var(--amber)}
+.stake-rows{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.stake-rows div{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;font-size:13.5px}
+.stake-rows div + div{border-top:1px solid var(--line)}
+.stake-rows .tot{background:var(--surface-2);font-weight:600}
+.stake .switch{margin-top:10px}

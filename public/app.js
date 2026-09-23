@@ -70,7 +70,7 @@ const app = {
   loaded: { settings: false },
   tab: 'home', parent: ROLE === 'parent', planMonth: null, actMonth: 'all', actCat: 'all',
   readOnly: ROLE !== 'parent', loginError: '', busy: false,
-  pending: new Set(), shownEarned: null, lastDay: today(), homeDate: null, bestCase: false,
+  pending: new Set(), shownEarned: null, lastDay: today(), homeDate: null, bestCase: false, showStake: false,
 };
 const T = (id) => C.DEFAULT_TASKS[id] && Object.assign({}, C.DEFAULT_TASKS[id], (app.S.settings && app.S.settings.tasks && app.S.settings.tasks[id]) || {});
 const isLive = () => app.mode === 'live';
@@ -357,6 +357,30 @@ function progressCard(sum, compact) {
   </section>`;
 }
 
+function stakeCard(t) {
+  const k = C.collegeStakeToday(app.S, t);
+  if (!k || k.status === 'excused') return '';
+  const rel = shortDateNoDay(k.releaseDate);
+  const breakdown = `<div class="stake-rows">
+      <div><span>Today's college day</span><strong class="num">${money(k.dayPence)}</strong></div>
+      <div><span>${k.bonusDropPence > 0 ? `Bonus level ${moneyShort(k.bonusIfGo)} → ${moneyShort(k.bonusIfMiss)} (paid ${esc(rel)})` : `Bonus stays at ${moneyShort(k.bonusIfGo)}`}</span><strong class="num">${money(k.bonusDropPence)}</strong></div>
+      <div class="tot"><span>Difference to this month</span><strong class="num">${money(k.totalPence)}</strong></div>
+    </div>`;
+  let head, body = '';
+  if (k.status === 'attended') {
+    head = `<div class="stake-top">${badge('college', 'completed')}<div><div class="t">Attended today</div><div class="s">That kept ${money(k.totalPence)} this month${k.bonusDropPence > 0 ? `, including your ${moneyShort(k.bonusIfGo)} bonus level` : ''}.</div></div></div>`;
+  } else if (k.status === 'missed') {
+    head = `<div class="stake-top">${badge('college', 'missed')}<div><div class="t">Not attended today</div><div class="s">Today's college day was worth ${money(k.totalPence)}.</div></div></div>`;
+  } else {
+    head = `<div class="stake-top">${badge('college', 'scheduled')}<div><div class="t">Today's college day is worth <span class="num stake-amt">${money(k.totalPence)}</span></div>
+      <div class="s">${k.bonusDropPence > 0 ? `${money(k.dayPence)} for the day plus ${money(k.bonusDropPence)} of bonus.` : `${money(k.dayPence)} for the day. ${k.bonusIfGo ? `Your ${moneyShort(k.bonusIfGo)} bonus level is safe today.` : ''}`}</div></div></div>`;
+    body = `<button type="button" class="switch" role="switch" aria-checked="${!!app.showStake}" data-act="stake" id="stake-toggle"><span class="knob" aria-hidden="true"></span>What if I miss college today?</button>
+      ${app.showStake ? `<p class="small" style="margin:10px 0 4px">If you don't go today, this month's payment is <strong class="num">${money(k.totalPence)}</strong> lower:</p>${breakdown}
+      <p class="note" style="margin:8px 0 0">${k.missedIfMiss} college day${k.missedIfMiss === 1 ? '' : 's'} missed this month after today. Days you're excused from don't count.</p>` : ''}`;
+  }
+  return `<section class="card stake" aria-label="Today's college day">${head}${body}</section>`;
+}
+
 function taskRow(item, viewDate) {
   const d = T(item.taskId);
   const past = viewDate && viewDate !== today();
@@ -418,6 +442,7 @@ function renderHome(t) {
   return `
     ${balanceCard(sum, L)}
     ${progressCard(sum, true)}
+    ${stakeCard(t)}
     <div class="section-h">${dayNav}</div>
     <section class="card" style="padding:0">${todayHtml}</section>
     <section class="card payout" aria-label="Next payment">
@@ -922,6 +947,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'demo-role') { ROLE = el.dataset.role; app.parent = ROLE === 'parent'; app.tab = 'home'; app.shownEarned = null; closeSheet(); render(); window.scrollTo(0, 0); return; }
   if (act === 'demo-reset') { app.S = buildDemo(); app.shownEarned = null; render(); toast('Demo data reset'); return; }
   if (act === 'best-case') { app.bestCase = !app.bestCase; render(); return; }
+  if (act === 'stake') { app.showStake = !app.showStake; render(); return; }
   if (act === 'view-day') return sheetViewDay(el.dataset.date);
   if (act === 'view-week') return sheetViewWeek(el.dataset.mon);
   if (act === 'reload') { app.mode = 'loading'; render(); return load(); }
