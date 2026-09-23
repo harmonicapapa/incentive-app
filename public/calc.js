@@ -157,7 +157,7 @@
       // Monthly progress and bonus are based on college attendance to date only.
       rate: cp.rate, ratePct: cp.ratePct, attended: cp.attended, counted: cp.counted, remainingDays: cp.remainingDays,
       bonus, released: cp.released, releaseDate: cp.releaseDate, provisional: !cp.released,
-      next: cp.next, unlocked: cp.unlocked, best: cp.best, missed: cp.missed, planned: cp.planned, level: cp.level, allowance: cp.allowance, lower: cp.lower, total: earned + bonus,
+      next: cp.next, unlocked: cp.unlocked, best: cp.best, todayOpen: cp.todayOpen, missed: cp.missed, planned: cp.planned, level: cp.level, allowance: cp.allowance, lower: cp.lower, total: earned + bonus,
     };
   }
 
@@ -167,12 +167,13 @@
    * during the month and is released on the first day of the following month.
    */
   function collegeProgress(S, ym, today) {
-    let attended = 0, counted = 0, remainingDays = 0;
+    // Today's college day counts as missed until it is ticked as attended (or excused).
+    let attended = 0, counted = 0, remainingDays = 0, todayOpen = false, todayCounted = false;
     for (const d of collegeDates(S, ym)) {
       const st = dayStatus(S, 'college', d, today);
       if (st === 'excused') continue;
-      if (st === 'completed') { attended++; counted++; }
-      else if (d < today || (d === today && st === 'missed' && S.occ[occId('college', d)])) counted++;
+      if (st === 'completed') { attended++; counted++; if (d === today) todayCounted = true; }
+      else if (d <= today) { counted++; if (d === today) { todayCounted = true; todayOpen = !S.occ[occId('college', d)] || S.occ[occId('college', d)].status !== 'missed'; } }
       else remainingDays++;
     }
     const rate = counted === 0 ? 0 : attended / counted;
@@ -185,12 +186,14 @@
     const lower = level ? (LADDER[LADDER.indexOf(level) + 1] || null) : null;
     const releaseDate = monthStart(shiftMonth(ym, 1));
     // Best case: every remaining college day this month is attended (misses stay where they are).
-    const bA = attended + remainingDays, bC = counted + remainingDays;
+    const toGo = remainingDays + (todayOpen ? 1 : 0);
+    const bA = attended + toGo, bC = counted + remainingDays;
     const bRate = bC === 0 ? 0 : bA / bC;
-    const best = { attended: bA, counted: bC, rate: bRate, ratePct: Math.round(bRate * 1000) / 10, bonus, days: remainingDays, extraPence: remainingDays * value(S, 'college') };
+    const bLevel = bC === 0 ? null : levelFor(bC - bA);
+    const best = { attended: bA, counted: bC, rate: bRate, ratePct: Math.round(bRate * 1000) / 10, bonus: bLevel ? bLevel.bonusPence : 0, level: bLevel, days: toGo, extraPence: toGo * value(S, 'college') };
     const unlocked = level ? [level.key] : [];
     const next = null;
-    return { attended, counted, remainingDays, missed, planned, level, allowance, lower, rate, ratePct: Math.round(rate * 1000) / 10, bonus, unlocked, next, best, releaseDate, released: today >= releaseDate };
+    return { attended, counted, remainingDays, todayOpen, todayCounted, missed, planned, level, allowance, lower, rate, ratePct: Math.round(rate * 1000) / 10, bonus, unlocked, next, best, releaseDate, released: today >= releaseDate };
   }
 
   /**
@@ -205,9 +208,9 @@
     const cp = collegeProgress(S, ym, today);
     const dayPence = st === 'completed' && o ? o.valuePence : value(S, 'college');
     const status = st === 'completed' ? 'attended' : st === 'excused' ? 'excused' : (o && st === 'missed') ? 'missed' : 'open';
-    // Missed count if today is (or was) missed.
-    const missedIfMiss = status === 'open' ? cp.missed + 1 : status === 'attended' ? cp.missed + 1 : cp.missed;
-    const missedIfGo = status === 'missed' ? cp.missed - 1 : status === 'open' ? cp.missed : cp.missed;
+    // Misses before today (today's day is counted as missed unless attended).
+    const missedBase = cp.missed - (status === 'attended' ? 0 : 1);
+    const missedIfMiss = missedBase + 1, missedIfGo = missedBase;
     const levelIfGo = levelFor(missedIfGo), levelIfMiss = levelFor(missedIfMiss);
     const bonusIfGo = levelIfGo ? levelIfGo.bonusPence : 0, bonusIfMiss = levelIfMiss ? levelIfMiss.bonusPence : 0;
     return { status, dayPence, bonusIfGo, bonusIfMiss, bonusDropPence: bonusIfGo - bonusIfMiss, totalPence: dayPence + bonusIfGo - bonusIfMiss, missedNow: cp.missed, missedIfMiss, releaseDate: cp.releaseDate };
@@ -222,13 +225,15 @@
     const tasksPence = done.reduce((s, o) => s + o.valuePence, 0);
     const ym = monthOf(today);
     const cp = collegeProgress(S, ym, today);
-    let bonusDeltaPence = 0, fromLevel = cp.level, toLevel = cp.level;
-    const o = S.occ[occId('college', today)];
-    if (collegeDates(S, ym).includes(today) && o && o.status === 'missed' && today >= planStart(S)) {
-      fromLevel = levelFor(cp.missed - 1);
-      bonusDeltaPence = (cp.level ? cp.level.bonusPence : 0) - (fromLevel ? fromLevel.bonusPence : 0);
-    }
-    return { tasksPence, bonusDeltaPence, totalPence: tasksPence + bonusDeltaPence, count: done.length, fromLevel, toLevel };
+    // Change to the bonus caused by today's college day, compared with the start of the day.
+    const isCollegeDay = collegeDates(S, ym).includes(today) && today >= planStart(S);
+    const st = isCollegeDay ? dayStatus(S, 'college', today, today) : null;
+    const counts = isCollegeDay && st !== 'excused';
+    const missedBase = counts && st !== 'completed' ? cp.missed - 1 : cp.missed;
+    const fromLevel = counts ? levelFor(missedBase) : cp.level, toLevel = cp.level;
+    const bonusDeltaPence = counts ? (toLevel ? toLevel.bonusPence : 0) - (fromLevel ? fromLevel.bonusPence : 0) : 0;
+    const college = !isCollegeDay ? 'none' : st === 'completed' ? 'attended' : st === 'excused' ? 'excused' : (S.occ[occId('college', today)] ? 'missed' : 'open');
+    return { tasksPence, bonusDeltaPence, totalPence: tasksPence + bonusDeltaPence, count: done.length, fromLevel, toLevel, college };
   }
 
   /** Tasks shown on Home for `today`. */

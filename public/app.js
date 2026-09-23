@@ -312,8 +312,14 @@ function todayLine(sum) {
   const sign = e.totalPence > 0 ? '+' : e.totalPence < 0 ? '−' : '';
   const cls = e.totalPence > 0 ? 'pos' : e.totalPence < 0 ? 'neg' : 'zero';
   const bits = [];
-  if (e.tasksPence) bits.push(`+${money(e.tasksPence)} from ${e.count} task${e.count === 1 ? '' : 's'}`);
-  if (e.bonusDeltaPence) bits.push(`−${money(-e.bonusDeltaPence)} bonus (${e.fromLevel ? e.fromLevel.tierLabel : 'none'} → ${e.toLevel ? e.toLevel.tierLabel : 'no bonus'})`);
+  const colOcc = app.S.occ[C.occId('college', t)];
+  const collegePence = e.college === 'attended' && colOcc ? colOcc.valuePence : 0;
+  const otherPence = e.tasksPence - collegePence, otherCount = e.count - (collegePence ? 1 : 0);
+  if (otherPence) bits.push(`+${money(otherPence)} from ${otherCount} task${otherCount === 1 ? '' : 's'}`);
+  const drop = e.bonusDeltaPence < 0 ? `−${money(-e.bonusDeltaPence)} bonus (${e.fromLevel ? e.fromLevel.tierLabel : 'none'} → ${e.toLevel ? e.toLevel.tierLabel : 'no bonus'})` : '';
+  if (e.college === 'attended') bits.push(`+${money(collegePence)} college${e.toLevel ? ` · ${e.toLevel.tierLabel} bonus kept` : ''}`);
+  else if (e.college === 'open') bits.push(drop ? `College not ticked yet: ${drop}` : 'College not ticked yet');
+  else if (e.college === 'missed' && drop) bits.push(drop);
   return `<div class="today-line ${cls}"><span class="tl-lbl">Earned today</span><strong class="num">${sign}${money(Math.abs(e.totalPence))}</strong>${bits.length ? `<span class="tl-bits">${bits.join(' · ')}</span>` : `<span class="tl-bits">Nothing recorded yet today</span>`}</div>`;
 }
 function bestCaseOn(sum) {
@@ -322,7 +328,7 @@ function bestCaseOn(sum) {
 function balanceCard(sum, L) {
   const proj = bestCaseOn(sum);
   const already = sum.earned + sum.bonus;
-  const extra = proj ? sum.best.extraPence : 0;
+  const extra = proj ? sum.best.extraPence + (sum.best.bonus - sum.bonus) : 0;
   const total = already + extra;
   const pounds = Math.floor(total / 100).toLocaleString('en-GB'), pence = String(total % 100).padStart(2, '0');
   const rel = shortDateNoDay(sum.releaseDate);
@@ -331,7 +337,7 @@ function balanceCard(sum, L) {
     <div class="lbl">${proj ? `If you attend every remaining college day · ${month}` : `Indicative payment · ${month}`}</div>
     <div class="amt num" id="bal-amt" data-v="${total}">£${pounds}<span class="pence">.${pence}</span></div>
     ${todayLine(sum)}
-    ${proj ? `<div class="proj-line num"><span>${money(already)} so far</span><span class="plus">+ ${money(extra)}</span><span class="muted-on-navy">for ${sum.best.days} college day${sum.best.days === 1 ? '' : 's'} to go</span></div>` : ''}
+    ${proj ? `<div class="proj-line num"><span>${money(already)} so far</span><span class="plus">+ ${money(extra)}</span><span class="muted-on-navy">for ${sum.best.days} college day${sum.best.days === 1 ? '' : 's'} to go${sum.best.bonus > sum.bonus ? ` (incl. ${money(sum.best.bonus - sum.bonus)} bonus back)` : ''}</span></div>` : ''}
     <div class="row">
       <div><span>Tasks earned</span><strong class="num">${money(sum.earned)}</strong></div>
       <div><span>Bonus · released ${esc(rel)}</span><strong class="num">${money(sum.bonus)}</strong></div>
@@ -359,8 +365,8 @@ function progressCard(sum, compact) {
   let note;
   if (sum.planned === 0) note = `<span class="muted">No college days in this month's plan yet.</span>`;
   else if (!sum.level) note = `<span class="muted">${sum.missed} days missed this month, so no attendance bonus. Every day attended still adds ${moneyShort(collegeV)}.</span>`;
-  else if (showBest) note = `${tierPill(moneyShort(sum.bonus) + ' bonus kept')}
-      <span class="muted">Attending all <strong class="num" style="color:var(--ink)">${b.days}</strong> remaining college day${b.days === 1 ? '' : 's'} keeps you on the ${moneyShort(sum.bonus)} level and adds ${moneyShort(b.extraPence)} for the days: <strong class="num" style="color:var(--ink)">${money(sum.bonus + b.extraPence)}</strong> from college still to come.</span>`;
+  else if (showBest) note = `${b.level ? `<span class="pill tierpill t-${b.level.tier}">${icon('award', 'sm')}${b.level.tierLabel} · ${moneyShort(b.bonus)}</span>` : ''}
+      <span class="muted">Attending all <strong class="num" style="color:var(--ink)">${b.days}</strong> remaining college day${b.days === 1 ? '' : 's'}${sum.todayOpen ? ' (including today)' : ''} ${b.bonus > sum.bonus ? `brings you back to ${b.level.tierLabel} (+${moneyShort(b.bonus - sum.bonus)})` : `keeps you on ${sum.level ? sum.level.tierLabel : 'this level'}`} and adds ${moneyShort(b.extraPence)} for the days.</span>`;
   else {
     const parts = [tierPill(`${moneyShort(sum.bonus)} ${sum.released ? 'released ' + esc(rel) : 'on track · paid ' + esc(rel)}`)];
     if (!sum.released) {
@@ -369,7 +375,7 @@ function progressCard(sum, compact) {
     }
     note = parts.join('');
   }
-  const sub = `${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days yet'} · ${sum.missed} missed${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}`;
+  const sub = `${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days yet'} · ${sum.missed} missed${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}${sum.todayOpen && !sum.released ? ' · today counts as missed until college is ticked' : ''}`;
   return `<section class="card" aria-label="Monthly progress">
     <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3>${sum.level ? `<span class="medal-badge t-${sum.level.tier}">${icon('award', 'sm')}<span class="num">${moneyShort(sum.bonus)}</span></span>` : `<span class="pct num">${sum.planned ? '£0' : '–'}</span>`}</div>
     <div class="note" style="margin-top:2px">${sub}</div>
