@@ -451,8 +451,8 @@ function renderHome(t) {
     : `<h2>Today</h2>`;
   return `
     ${balanceCard(sum, L)}
-    ${progressCard(sum, true)}
     ${stakeCard(t)}
+    ${progressCard(sum, true)}
     <div class="section-h">${dayNav}</div>
     <section class="card" style="padding:0">${todayHtml}</section>
     <section class="card payout" aria-label="Next payment">
