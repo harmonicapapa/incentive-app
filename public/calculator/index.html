@@ -73,8 +73,7 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
         <button class="chip" type="button" data-preset="good">Good month</button>
         <button class="chip" type="button" data-preset="perfect">Perfect</button>
       </div>
-      <div class="field" style="margin-bottom:4px"><span class="lab">Days in the month</span>
-        <div class="monthlen" role="group" aria-label="Days in the month" id="mlen"></div></div>
+      <p class="note" style="margin:0 0 4px">Based on a 30-day month with 16 college days.</p>
       <div id="sliders"></div>
     </section>
 
@@ -114,11 +113,10 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
   const money = (p) => '£' + (p / 100).toFixed(2);
   const short = (p) => (p % 100 === 0 ? '£' + p / 100 : money(p));
 
-  const st = { days: 31, morning: 31, planned: 16, college: 16, room: 4, meal: 4, bath: 4 };
+  const st = { days: 30, morning: 30, planned: 16, college: 16, room: 4, meal: 4, bath: 4 };
   const SL = [
-    { k: 'morning', icon: 'morning', label: T.morning.label, sub: 'Days completed', max: () => st.days, v: T.morning.valuePence },
-    { k: 'planned', icon: 'plan', label: 'College days this month', sub: 'Scheduled by the parent (excused days left out)', max: () => 23, min: 1, v: 0 },
-    { k: 'college', icon: 'college', label: T.college.label, sub: 'Days attended', max: () => st.planned, v: T.college.valuePence },
+    { k: 'morning', icon: 'morning', label: T.morning.label, sub: 'Days completed (of 30)', max: () => st.days, v: T.morning.valuePence },
+    { k: 'college', icon: 'college', label: T.college.label, sub: 'Days attended (of 16)', max: () => st.planned, v: T.college.valuePence },
     { k: 'room', icon: 'room', label: T.room.label, sub: 'Weeks done (max 4)', max: () => 4, v: T.room.valuePence },
     { k: 'meal', icon: 'meal', label: T.meal.label, sub: 'Weeks done (max 4)', max: () => 4, v: T.meal.valuePence },
     { k: 'bath', icon: 'bath', label: T.bath.label, sub: 'Weeks done (max 4)', max: () => 4, v: T.bath.valuePence },
@@ -130,7 +128,6 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
     perfect: { morning: 1, college: 1, room: 4, meal: 4, bath: 4 },
   };
 
-  document.getElementById('mlen').innerHTML = [28, 29, 30, 31].map((d) => `<button type="button" data-days="${d}" aria-pressed="${st.days === d}">${d} days</button>`).join('');
   document.getElementById('sliders').innerHTML = SL.map((s) => `
     <div class="sl">
       <div class="sl-top"><div class="tico">${icon(s.icon)}</div>
@@ -155,7 +152,6 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
       document.getElementById('tmin-' + s.k).textContent = s.min || 0;
       document.getElementById('tmax-' + s.k).textContent = max;
     }
-    document.querySelectorAll('#mlen button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.days === st.days)));
 
     const parts = SL.filter((s) => s.v).map((s) => ({ k: s.k, label: s.label, p: st[s.k] * s.v }));
     const tasks = parts.reduce((a, b) => a + b.p, 0);
@@ -194,14 +190,8 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
   }
   document.getElementById('sliders').addEventListener('input', (e) => {
     const k = e.target.dataset.k; if (!k) return;
-    const before = st.planned;
     st[k] = +e.target.value;
-    if (k === 'planned' && st.college === before) st.college = st.planned; // keep "all attended" when the plan grows
     render();
-  });
-  document.getElementById('mlen').addEventListener('click', (e) => {
-    const b = e.target.closest('[data-days]'); if (!b) return;
-    const wasAll = st.morning === st.days; st.days = +b.dataset.days; if (wasAll) st.morning = st.days; render();
   });
   document.querySelector('.presets').addEventListener('click', (e) => {
     const b = e.target.closest('[data-preset]'); if (!b) return;
