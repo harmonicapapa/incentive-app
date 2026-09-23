@@ -36,6 +36,7 @@ const ICONS = {
   check: P(['M20 6 9 17l-5-5']),
   bath: P(['M10 4 8 6', 'M17 19v2', 'M2 12h20', 'M7 19v2', 'M9 5 7.621 3.621A2.121 2.121 0 0 0 4 5v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5']),
   pill: P(['m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z', 'm8.5 8.5 7 7']),
+  calc: P(['<rect width="16" height="20" x="4" y="2" rx="2"/>', 'M8 6h8', 'M16 14v4', 'M16 10h.01', 'M12 10h.01', 'M8 10h.01', 'M12 14h.01', 'M8 14h.01', 'M12 18h.01', 'M8 18h.01']),
   settings: P(['M20 7h-9', 'M14 17H5', '<circle cx="17" cy="17" r="3"/>', '<circle cx="7" cy="7" r="3"/>']),
   home: P(['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']),
   activity: P(['M3 12h.01', 'M3 18h.01', 'M3 6h.01', 'M8 12h13', 'M8 18h13', 'M8 6h13']),
@@ -353,6 +354,7 @@ function progressCard(sum, compact) {
     ${sum.planned ? `<div class="lvls" role="img" aria-label="Attendance bonus levels: £50 for no days missed, £30 for 1 to 2, £20 for 3 to 4, £10 for 5 to 6. ${sum.missed} missed so far; current level ${moneyShort(sum.bonus)}.">${strip}</div>` : ''}
     <div class="prog-note">${note}</div>
     ${canBest && sum.level ? `<button type="button" class="switch" role="switch" aria-checked="${showBest}" data-act="best-case" id="best-toggle"><span class="knob" aria-hidden="true"></span>If I attend every day for the rest of the month</button>` : ''}
+    <a class="calc-link" href="/calculator" id="calc-link-${compact ? 'h' : 'p'}">${icon('calc', 'sm')}<span>Earnings calculator<small>See what a month could earn</small></span>${icon('right', 'sm')}</a>
     ${compact ? '' : `<div class="note" style="margin-top:8px">The bonus depends on college days missed. Excused days don't count as missed. Other tasks add to the balance but don't change the bonus.</div>`}
   </section>`;
 }
@@ -628,6 +630,7 @@ function renderParentTools(ym, t, sum) {
       <button class="btn" type="button" data-act="sheet-payment" id="t-pay">${icon('payment', 'sm')}Record payment</button>
       <button class="btn" type="button" data-act="sheet-tasks" id="t-tasks">${icon('sliders', 'sm')}Tasks and values</button>
       ${m.closed ? `<button class="btn" type="button" data-act="sheet-close" id="t-close">${icon('unlock', 'sm')}Reopen month</button>` : `<button class="btn" type="button" data-act="sheet-close" id="t-close" ${ended ? '' : 'disabled title="Available after the month ends"'}>${icon('flag', 'sm')}Close month</button>`}
+      <a class="btn" href="/calculator" id="t-calc">${icon('calc', 'sm')}Earnings calculator</a>
       <button class="btn" type="button" data-act="sheet-backup" id="t-backup">${icon('download', 'sm')}Backup and reset</button>
       ${app.mode === 'demo' ? '' : `<a class="btn" href="/demo" id="t-demo">${icon('plan', 'sm')}Demo with sample data</a>`}
       ${app.mode === 'demo' ? `<button class="btn" type="button" data-act="exit-demo" id="t-exit">${icon('logout', 'sm')}Exit demo</button>` : `<button class="btn" type="button" data-act="signout" id="t-signout">${icon('logout', 'sm')}Sign out</button>`}

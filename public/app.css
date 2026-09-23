@@ -310,3 +310,9 @@ a.btn{text-decoration:none;color:inherit}
 .stake-rows div + div{border-top:1px solid var(--line)}
 .stake-rows .tot{background:var(--surface-2);font-weight:600}
 .stake .switch{margin-top:10px}
+
+/* calculator link */
+.calc-link{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r);text-decoration:none;color:var(--ink);background:var(--surface-2)}
+.calc-link:hover{border-color:var(--ink-3)}
+.calc-link span{flex:1;font-weight:600;font-size:14px;display:flex;flex-direction:column}
+.calc-link small{font-weight:400;font-size:12.5px;color:var(--ink-2)}

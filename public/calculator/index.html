@@ -62,7 +62,7 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
       <h1>Earnings calculator</h1>
       <p>Move the sliders to see what a month could earn for <span>LieLie</span>, using the app's current values and attendance bonus.</p>
     </div>
-    <div class="btnrow"><a class="btn" href="/examples">Example months</a><a class="btn" href="/demo">Open the demo</a></div>
+    <div class="btnrow"><a class="btn" href="/" id="back">‹ Back</a><a class="btn" href="/examples">Example months</a></div>
   </header>
 
   <div class="layout">
@@ -203,6 +203,8 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
     render();
   });
   render();
+  // Back goes to wherever the calculator was opened from on this site (LieLie's page, the portal or the demo).
+  try { const r = new URL(document.referrer); if (r.origin === location.origin && r.pathname !== location.pathname) document.getElementById('back').href = r.pathname; } catch (e) { /* no referrer */ }
 })();
 </script>
 </body>
