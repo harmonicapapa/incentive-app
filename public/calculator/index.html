@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Move the sliders to see what a month could earn">
+<meta name="theme-color" content="#15244A">
+<title>Earned · Calculator</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315244A'/%3E%3Cpath d='M10 17l4 4 8-9' fill='none' stroke='%2386DDAA' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+.calc{max-width:960px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+.chead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:16px}
+.chead h1{margin:0;font-size:24px;letter-spacing:-.01em}
+.chead p{margin:4px 0 0;color:var(--ink-2);max-width:56ch}
+.layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:760px){.layout{grid-template-columns:1fr}.result{position:static!important;order:-1}}
+.result{position:sticky;top:calc(12px + env(safe-area-inset-top,0px))}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.sl{padding:14px 0}
+.sl + .sl{border-top:1px solid var(--line)}
+.sl-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.sl-top .tico{width:32px;height:32px}
+.sl-top .nm{flex:1;min-width:0}
+.sl-top .nm strong{display:block;font-size:14.5px}
+.sl-top .nm span{font-size:12.5px;color:var(--ink-2)}
+.sl-top .val{text-align:right;font-variant-numeric:tabular-nums}
+.sl-top .val strong{display:block;font-size:17px}
+.sl-top .val span{font-size:12px;color:var(--green);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;cursor:pointer}
+:root[data-theme="dark"] input[type=range]{accent-color:var(--green)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) input[type=range]{accent-color:var(--green)}}
+.ticks{display:flex;justify-content:space-between;font-size:11px;color:var(--ink-3);margin-top:-2px}
+.monthlen{display:flex;gap:6px;flex-wrap:wrap}
+.monthlen button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 11px;font-size:13px;color:var(--ink-2)}
+.monthlen button[aria-pressed="true"]{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
+.brk{display:flex;flex-direction:column;margin-top:4px}
+.brk div{display:flex;justify-content:space-between;gap:10px;padding:7px 0;font-size:13.5px;border-top:1px solid rgba(255,255,255,.14)}
+.brk div span{color:var(--navy-soft)}
+.brk div strong{font-variant-numeric:tabular-nums}
+.stack-bar{display:flex;height:10px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.14);margin:10px 0 4px}
+.stack-bar i{display:block;height:100%}
+.hint{font-size:13.5px;margin:0}
+.hint + .hint{margin-top:8px}
+.minibar{display:none}
+@media (max-width:760px){
+  .minibar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;justify-content:space-between;align-items:center;gap:10px;background:var(--navy);color:var(--navy-ink);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));font-variant-numeric:tabular-nums}
+  .minibar strong{font-size:20px}
+  .minibar span{font-size:12.5px;color:var(--navy-soft)}
+  .calc{padding-bottom:90px}
+}
+</style>
+</head>
+<body>
+<div class="calc">
+  <header class="chead">
+    <div>
+      <h1>Earnings calculator</h1>
+      <p>Move the sliders to see what a month could earn for <span>LieLie</span>, using the app's current values and attendance bonus.</p>
+    </div>
+    <div class="btnrow"><a class="btn" href="/examples">Example months</a><a class="btn" href="/demo">Open the demo</a></div>
+  </header>
+
+  <div class="layout">
+    <section class="card" aria-label="Inputs">
+      <div class="presets" role="group" aria-label="Presets">
+        <button class="chip" type="button" data-preset="none">Nothing done</button>
+        <button class="chip" type="button" data-preset="half">About half</button>
+        <button class="chip" type="button" data-preset="good">Good month</button>
+        <button class="chip" type="button" data-preset="perfect">Perfect</button>
+      </div>
+      <div class="field" style="margin-bottom:4px"><span class="lab">Days in the month</span>
+        <div class="monthlen" role="group" aria-label="Days in the month" id="mlen"></div></div>
+      <div id="sliders"></div>
+    </section>
+
+    <aside class="result" aria-live="polite">
+      <section class="balance">
+        <div class="lbl">This month would earn</div>
+        <div class="amt num" id="total">£0<span class="pence">.00</span></div>
+        <div class="stack-bar" id="sbar" aria-hidden="true"></div>
+        <div class="brk" id="brk"></div>
+      </section>
+      <section class="card" style="margin-top:14px">
+        <div class="prog-top"><h3>Attendance bonus</h3><span class="pct num" id="bonusbig">£0</span></div>
+        <div class="note" style="margin-top:2px" id="missedline"></div>
+        <div class="lvls" id="lvls"></div>
+        <p class="hint" id="hint1"></p>
+        <p class="hint muted" id="hint2"></p>
+      </section>
+    </aside>
+  </div>
+</div>
+<div class="minibar" aria-hidden="true"><span>This month</span><strong id="mini-total">£0</strong><span id="mini-bonus"></span></div>
+
+<script src="/calc.js"></script>
+<script>
+(function () {
+  const C = window.Calc, T = C.DEFAULT_TASKS;
+  const P = (d) => d.map((x) => (x.startsWith('<') ? x : `<path d="${x}"/>`)).join('');
+  const ICONS = {
+    morning: P(['<circle cx="12" cy="12" r="4"/>', 'M12 2v2', 'M12 20v2', 'm4.93 4.93 1.41 1.41', 'm17.66 17.66 1.41 1.41', 'M2 12h2', 'M20 12h2', 'm6.34 17.66-1.41 1.41', 'm19.07 4.93-1.41 1.41']),
+    college: P(['M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z', 'M22 10v6', 'M6 12.5V16a6 3 0 0 0 12 0v-3.5']),
+    plan: P(['<rect x="3" y="4" width="18" height="18" rx="2"/>', 'M16 2v4', 'M8 2v4', 'M3 10h18']),
+    room: P(['M2 4v16', 'M2 8h18a2 2 0 0 1 2 2v10', 'M2 17h20', 'M6 8v9']),
+    meal: P(['M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2', 'M7 2v20', 'M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7']),
+    bath: P(['M10 4 8 6', 'M17 19v2', 'M2 12h20', 'M7 19v2', 'M9 5 7.621 3.621A2.121 2.121 0 0 0 4 5v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5']),
+  };
+  const icon = (n) => `<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]}</svg>`;
+  const money = (p) => '£' + (p / 100).toFixed(2);
+  const short = (p) => (p % 100 === 0 ? '£' + p / 100 : money(p));
+
+  const st = { days: 31, morning: 31, planned: 16, college: 16, room: 4, meal: 4, bath: 4 };
+  const SL = [
+    { k: 'morning', icon: 'morning', label: T.morning.label, sub: 'Days completed', max: () => st.days, v: T.morning.valuePence },
+    { k: 'planned', icon: 'plan', label: 'College days this month', sub: 'Scheduled by the parent (excused days left out)', max: () => 23, min: 1, v: 0 },
+    { k: 'college', icon: 'college', label: T.college.label, sub: 'Days attended', max: () => st.planned, v: T.college.valuePence },
+    { k: 'room', icon: 'room', label: T.room.label, sub: 'Weeks done (max 4)', max: () => 4, v: T.room.valuePence },
+    { k: 'meal', icon: 'meal', label: T.meal.label, sub: 'Weeks done (max 4)', max: () => 4, v: T.meal.valuePence },
+    { k: 'bath', icon: 'bath', label: T.bath.label, sub: 'Weeks done (max 4)', max: () => 4, v: T.bath.valuePence },
+  ];
+  const PRESETS = {
+    none: { morning: 0, college: 0, room: 0, meal: 0, bath: 0 },
+    half: { morning: 0.5, college: 0.5, room: 2, meal: 2, bath: 2 },
+    good: { morning: 0.85, college: -2, room: 3, meal: 3, bath: 3 },
+    perfect: { morning: 1, college: 1, room: 4, meal: 4, bath: 4 },
+  };
+
+  document.getElementById('mlen').innerHTML = [28, 29, 30, 31].map((d) => `<button type="button" data-days="${d}" aria-pressed="${st.days === d}">${d} days</button>`).join('');
+  document.getElementById('sliders').innerHTML = SL.map((s) => `
+    <div class="sl">
+      <div class="sl-top"><div class="tico">${icon(s.icon)}</div>
+        <div class="nm"><strong>${s.label}</strong><span>${s.sub}${s.v ? ' · ' + short(s.v) + ' each' : ''}</span></div>
+        <div class="val"><strong id="v-${s.k}"></strong><span id="e-${s.k}"></span></div></div>
+      <input type="range" id="r-${s.k}" data-k="${s.k}" min="${s.min || 0}" step="1" aria-describedby="v-${s.k}">
+      <div class="ticks"><span id="tmin-${s.k}"></span><span id="tmax-${s.k}"></span></div>
+    </div>`).join('');
+
+  function clamp() {
+    st.morning = Math.min(st.morning, st.days);
+    st.college = Math.min(st.college, st.planned);
+  }
+  function render() {
+    clamp();
+    for (const s of SL) {
+      const r = document.getElementById('r-' + s.k), max = s.max();
+      r.max = max; r.value = st[s.k];
+      r.setAttribute('aria-valuetext', `${st[s.k]} of ${max}`);
+      document.getElementById('v-' + s.k).textContent = `${st[s.k]} / ${max}`;
+      document.getElementById('e-' + s.k).textContent = s.v ? '+' + money(st[s.k] * s.v) : '';
+      document.getElementById('tmin-' + s.k).textContent = s.min || 0;
+      document.getElementById('tmax-' + s.k).textContent = max;
+    }
+    document.querySelectorAll('#mlen button').forEach((b) => b.setAttribute('aria-pressed', String(+b.dataset.days === st.days)));
+
+    const parts = SL.filter((s) => s.v).map((s) => ({ k: s.k, label: s.label, p: st[s.k] * s.v }));
+    const tasks = parts.reduce((a, b) => a + b.p, 0);
+    const missed = st.planned - st.college;
+    const lvl = C.levelFor(missed);
+    const bonus = lvl ? lvl.bonusPence : 0;
+    const total = tasks + bonus;
+    const best = st.days * T.morning.valuePence + st.planned * T.college.valuePence + 4 * (T.room.valuePence + T.meal.valuePence + T.bath.valuePence) + C.LADDER[0].bonusPence;
+
+    const t = document.getElementById('total');
+    t.innerHTML = `£${Math.floor(total / 100)}<span class="pence">.${String(total % 100).padStart(2, '0')}</span>`;
+    const colors = { morning: '#86DDAA', college: '#5FC48F', room: '#3FA774', meal: '#2F8A5E', bath: '#236E4A' };
+    document.getElementById('sbar').innerHTML = parts.map((x) => `<i style="width:${(x.p / best) * 100}%;background:${colors[x.k]}"></i>`).join('') + `<i style="width:${(bonus / best) * 100}%;background:#E9A553"></i>`;
+    document.getElementById('brk').innerHTML = parts.map((x) => `<div><span>${x.label}</span><strong>${money(x.p)}</strong></div>`).join('')
+      + `<div><span>Attendance bonus (paid on the 1st)</span><strong>${money(bonus)}</strong></div>`
+      + `<div><span>Best possible this month</span><strong>${money(best)} · ${Math.round((total / best) * 100)}%</strong></div>`;
+
+    document.getElementById('bonusbig').textContent = short(bonus);
+    document.getElementById('mini-total').textContent = money(total);
+    document.getElementById('mini-bonus').textContent = `incl. ${short(bonus)} bonus`;
+    document.getElementById('missedline').textContent = `${st.college} of ${st.planned} college days attended · ${missed} missed`;
+    document.getElementById('lvls').innerHTML = C.LADDER.map((l) => {
+      const cur = lvl && lvl.key === l.key, gone = lvl ? l.maxMissed < missed : true;
+      return `<div class="lvl ${cur ? 'cur' : ''} ${gone && !cur ? 'gone' : ''}"><strong class="num">${short(l.bonusPence)}</strong><span>${l.maxMissed === 0 ? '0 missed' : `${l.maxMissed - 1}–${l.maxMissed} missed`}</span></div>`;
+    }).join('');
+    // What one more / one fewer college day would change
+    const h1 = document.getElementById('hint1'), h2 = document.getElementById('hint2');
+    if (missed > 0) {
+      const up = C.bonusForMissed(missed - 1) - bonus + T.college.valuePence;
+      h1.innerHTML = `One more college day would add <strong class="num">${money(up)}</strong>${up > T.college.valuePence ? ` (${short(T.college.valuePence)} plus a bonus step up)` : ''}.`;
+    } else h1.innerHTML = `No college days missed: the top bonus.`;
+    if (st.college > 0) {
+      const down = bonus - C.bonusForMissed(missed + 1) + T.college.valuePence;
+      h2.innerHTML = `Missing one more would cost ${money(down)}${down > T.college.valuePence ? ', including a bonus step down' : ''}.`;
+    } else h2.textContent = '';
+  }
+  document.getElementById('sliders').addEventListener('input', (e) => {
+    const k = e.target.dataset.k; if (!k) return;
+    const before = st.planned;
+    st[k] = +e.target.value;
+    if (k === 'planned' && st.college === before) st.college = st.planned; // keep "all attended" when the plan grows
+    render();
+  });
+  document.getElementById('mlen').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-days]'); if (!b) return;
+    const wasAll = st.morning === st.days; st.days = +b.dataset.days; if (wasAll) st.morning = st.days; render();
+  });
+  document.querySelector('.presets').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-preset]'); if (!b) return;
+    const p = PRESETS[b.dataset.preset];
+    st.morning = Math.round(p.morning * st.days);
+    st.college = p.college < 0 ? Math.max(0, st.planned + p.college) : Math.round(p.college * st.planned);
+    st.room = p.room; st.meal = p.meal; st.bath = p.bath;
+    document.querySelectorAll('.presets .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === b)));
+    render();
+  });
+  render();
+})();
+</script>
+</body>
+</html>
