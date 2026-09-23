@@ -227,3 +227,26 @@ button.day:hover{border-color:var(--ink-3)}
 
 @media (max-width:360px){.balance .amt{font-size:34px}.tools{grid-template-columns:1fr}.task{padding:12px}.tico{width:36px;height:36px}}
 @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+
+/* calendar badges */
+.day{justify-content:space-between;padding:4px 2px 5px}
+.day .dnum{line-height:1.1}
+.marks{display:flex;gap:2px;height:auto;align-items:center;justify-content:center}
+.bdg{width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;border:1.5px solid var(--line);color:var(--ink-3);background:var(--surface);flex:none;vertical-align:middle}
+.bdg .ic{width:11px;height:11px;stroke-width:2.4}
+.bdg.completed{background:var(--green);border-color:var(--green);color:#fff}
+.bdg.missed{background:transparent;border-color:var(--ink-3);color:var(--ink-3);opacity:.75}
+.bdg.excused{background:transparent;border-style:dashed;border-color:var(--excused);color:var(--excused)}
+.bdg.scheduled{background:var(--surface);border-color:var(--navy);color:var(--navy)}
+.bdg.future{background:transparent;border-color:var(--line);color:var(--ink-3);opacity:.6}
+.bdg-gap{width:0;height:18px}
+:root[data-theme="dark"] .bdg.scheduled{border-color:var(--navy-soft);color:var(--navy-soft)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .bdg.scheduled{border-color:var(--navy-soft);color:var(--navy-soft)}}
+.task .bdg{width:32px;height:32px}
+.task .bdg .ic{width:16px;height:16px}
+.cal-sum{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:8px;color:var(--ink-2)}
+.cal-sum span{display:inline-flex;align-items:center;gap:6px}
+.legend span{gap:5px}
+.legend .bdg{width:16px;height:16px}
+.legend .bdg .ic{width:9px;height:9px}
+@media (max-width:360px){.bdg{width:15px;height:15px}.bdg .ic{width:9px;height:9px}.marks{gap:1px}}

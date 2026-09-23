@@ -34,6 +34,7 @@ const ICONS = {
   room: P(['M2 4v16', 'M2 8h18a2 2 0 0 1 2 2v10', 'M2 17h20', 'M6 8v9']),
   meal: P(['M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2', 'M7 2v20', 'M21 15V2a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7']),
   check: P(['M20 6 9 17l-5-5']),
+  pill: P(['m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z', 'm8.5 8.5 7 7']),
   settings: P(['M20 7h-9', 'M14 17H5', '<circle cx="17" cy="17" r="3"/>', '<circle cx="7" cy="7" r="3"/>']),
   home: P(['M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8', 'M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z']),
   activity: P(['M3 12h.01', 'M3 18h.01', 'M3 6h.01', 'M8 12h13', 'M8 18h13', 'M8 6h13']),
@@ -291,7 +292,7 @@ function renderApp() {
     <main id="view" class="stack">${view}</main>
   </div>
   <nav class="tabs" aria-label="Main"><div class="in">
-    ${[['home', 'Home'], ['activity', 'Activity'], ['plan', 'Plan']].map(([k, l]) => `<button type="button" id="tab-${k}" data-act="tab" data-tab="${k}" ${app.tab === k ? 'aria-current="page"' : ''}>${icon(k === 'home' ? 'home' : k === 'activity' ? 'activity' : 'plan')}${l}</button>`).join('')}
+    ${[['home', 'Home'], ['activity', 'Activity'], ['plan', ROLE === 'parent' ? 'Plan' : 'Calendar']].map(([k, l]) => `<button type="button" id="tab-${k}" data-act="tab" data-tab="${k}" ${app.tab === k ? 'aria-current="page"' : ''}>${icon(k === 'home' ? 'home' : k === 'activity' ? 'activity' : 'plan')}${l}</button>`).join('')}
   </div></nav>`;
 }
 
@@ -435,7 +436,24 @@ function renderActivity(t) {
     ${groups.length ? groups.map((g) => `<div><div class="dategrp">${esc(label(g.key))}</div><section class="card" style="padding:0"><div class="txs">${g.items.map((a) => txRow(a, t, parentClick && a.kind === 'completion')).join('')}</div></section></div>`).join('') : `<section class="card"><div class="empty">No activity for this filter</div></section>`}`;
 }
 
-function markFor(status) { return status; }
+const DAY_LABEL = {
+  pill: { completed: 'Taken', missed: 'Not recorded', excused: 'Excused', scheduled: 'Not yet today', future: 'Upcoming' },
+  college: { completed: 'Attended', missed: 'Not attended', excused: 'Excused', scheduled: 'Today', future: 'Upcoming' },
+};
+function badge(ic, status) { return `<i class="bdg ${status}">${icon(ic)}</i>`; }
+function sheetViewDay(date) {
+  const S = app.S, t = today(), ym = C.monthOf(date);
+  const ms = C.dayStatus(S, 'morning', date, t);
+  const isCollege = C.collegeDates(S, ym).includes(date);
+  const cs = isCollege ? C.dayStatus(S, 'college', date, t) : null;
+  const mo = S.occ[C.occId('morning', date)], co = S.occ[C.occId('college', date)];
+  const row = (ic, title, status, labels, occ, extra) => `<div class="task" style="padding:12px 0">${badge(ic, status)}<div class="body"><div class="t">${esc(title)}</div><div class="s">${esc(labels[status] || STATUS_LABEL[status] || status)}${occ && occ.status === 'completed' && occ.completedAt ? ' · ' + esc(timeLondon(occ.completedAt)) : ''}${extra || ''}</div></div>${occ && occ.status === 'completed' ? `<span class="v num" style="color:var(--green)">+${moneyShort(occ.valuePence)}</span>` : ''}</div>`;
+  const weekly = ['room', 'meal'].map((id) => S.occ[`${id}_W${C.mondayOf(date)}`]).filter((o) => o && o.localDate === date && o.status === 'completed');
+  openSheet(longDate(date), `
+    ${row('pill', 'Medication', date > t ? 'future' : ms, DAY_LABEL.pill, mo)}
+    ${isCollege ? row('college', 'College', cs, DAY_LABEL.college, co) : `<div class="task" style="padding:12px 0"><i class="bdg future">${icon('college')}</i><div class="body"><div class="t">College</div><div class="s">No college scheduled</div></div></div>`}
+    ${weekly.map((o) => `<div class="task" style="padding:12px 0"><i class="bdg completed">${icon(o.taskId)}</i><div class="body"><div class="t">${esc(T(o.taskId).label)}</div><div class="s">Completed${o.completedAt ? ' · ' + esc(timeLondon(o.completedAt)) : ''}</div></div><span class="v num" style="color:var(--green)">+${moneyShort(o.valuePence)}</span></div>`).join('')}`);
+}
 function renderPlan(t) {
   const S = app.S;
   const ym = app.planMonth || C.monthOf(t);
@@ -450,13 +468,17 @@ function renderPlan(t) {
     const inPlan = d >= start;
     const ms = inPlan ? C.dayStatus(S, 'morning', d, t) : null;
     const cs = inPlan && cd.includes(d) ? C.dayStatus(S, 'college', d, t) : null;
-    const marks = `${ms ? `<i class="m ${ms}"></i>` : ''}${cs ? `<i class="m sq ${cs}"></i>` : ''}`;
-    const aria = `${shortDate(d)}${ms ? ': morning routine ' + (STATUS_LABEL[ms] || ms) : ''}${cs ? ', college ' + (STATUS_LABEL[cs] || cs) : ''}`;
+    const medBadge = ms && ms !== 'future' ? badge('pill', ms) : '<span class="bdg-gap"></span>';
+    const colBadge = cs ? badge('college', cs) : '<span class="bdg-gap"></span>';
+    const marks = medBadge + colBadge;
+    const aria = `${shortDate(d)}${ms && ms !== 'future' ? ': medication ' + (DAY_LABEL.pill[ms] || ms) : ''}${cs ? ', college ' + (DAY_LABEL.college[cs] || cs) : ''}`;
     const cls = `day ${d === t ? 'today' : ''} ${inPlan ? '' : 'out'}`;
-    cells += parent && inPlan
-      ? `<button type="button" class="${cls}" data-act="edit-day" data-date="${d}" id="day-${d}" aria-label="${esc(aria)}. Edit">${Number(d.slice(8))}<span class="marks">${marks}</span></button>`
-      : `<div class="${cls}" role="img" aria-label="${esc(aria)}">${Number(d.slice(8))}<span class="marks">${marks}</span></div>`;
+    cells += inPlan
+      ? `<button type="button" class="${cls}" data-act="${parent ? 'edit-day' : 'view-day'}" data-date="${d}" id="day-${d}" aria-label="${esc(aria)}. ${parent ? 'Edit' : 'Details'}"><span class="dnum">${Number(d.slice(8))}</span><span class="marks">${marks}</span></button>`
+      : `<div class="${cls}" aria-hidden="true"><span class="dnum">${Number(d.slice(8))}</span></div>`;
   }
+  const medDays = C.monthDates(ym).filter((d) => d >= start && d <= t && C.dayStatus(S, 'morning', d, t) !== 'excused' && !(d === t && C.dayStatus(S, 'morning', d, t) === 'scheduled'));
+  const medDone = medDays.filter((d) => C.dayStatus(S, 'morning', d, t) === 'completed').length;
   const weeks = C.planWeeks(S, ym);
   const wstat = (id, mon) => {
     const o = S.occ[`${id}_W${mon}`];
@@ -498,15 +520,16 @@ function renderPlan(t) {
       </div>
       ${monthResult}
     </section>
-    ${progressCard(sum, false)}
+    ${parent ? progressCard(sum, false) : ''}
     <section class="card" aria-label="Calendar">
-      <div class="prog-top"><h3>Calendar</h3>${parent ? '<span class="small muted">Tap a day to edit</span>' : ''}</div>
+      <div class="prog-top"><h3>Calendar</h3><span class="small muted">${parent ? 'Tap a day to edit' : 'Tap a day for details'}</span></div>
+      <div class="cal-sum small"><span>${badge('pill', 'completed')} Medication <strong class="num">${medDone}</strong> of ${medDays.length} days</span><span>${badge('college', 'completed')} College <strong class="num">${sum.attended}</strong> of ${sum.counted} days</span></div>
       <div class="cal">${cells}</div>
       <div class="legend">
-        <span><i class="m completed"></i>Completed</span><span><i class="m scheduled"></i>Scheduled</span><span><i class="m missed"></i>Not completed</span><span><i class="m excused"></i>Excused</span><span><i class="m future"></i>Upcoming</span>
-        <span><i class="m"></i>Morning</span><span><i class="m sq"></i>College</span>
+        <span>${badge('check', 'completed')}Done</span><span>${badge('check', 'missed')}Not done</span><span>${badge('check', 'excused')}Excused</span><span>${badge('check', 'scheduled')}Today</span><span>${badge('college', 'future')}Upcoming college</span>
       </div>
     </section>
+    ${parent ? '' : progressCard(sum, false)}
     <section class="card" aria-label="Weekly tasks">
       <div class="prog-top"><h3>Weekly tasks</h3><span class="small muted">Max 4 each per month</span></div>
       <div class="weeks">${weeks.map(wkRow).join('') || '<div class="empty">No weeks in plan</div>'}</div>
@@ -835,6 +858,7 @@ document.addEventListener('click', async (e) => {
   if (act === 'act-cat') { app.actCat = el.dataset.cat; return render(); }
   if (act === 'demo') { app.S = buildDemo(); app.mode = 'demo'; app.tab = 'home'; app.shownEarned = null; return render(); }
   if (act === 'exit-demo') return exitDemo();
+  if (act === 'view-day') return sheetViewDay(el.dataset.date);
   if (act === 'reload') { app.mode = 'loading'; render(); return load(); }
   if (ROLE !== 'parent') return;
   if (act === 'signout') return signOut();
