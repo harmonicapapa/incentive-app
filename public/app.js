@@ -304,16 +304,24 @@ function renderApp() {
   </div></nav>`;
 }
 
+function bestCaseOn(sum) {
+  return app.bestCase && !sum.released && sum.best && sum.best.days > 0 && sum.planned > 0 && !!sum.level;
+}
 function balanceCard(sum, L) {
-  const total = sum.earned + sum.bonus;
+  const proj = bestCaseOn(sum);
+  const already = sum.earned + sum.bonus;
+  const extra = proj ? sum.best.extraPence : 0;
+  const total = already + extra;
   const pounds = Math.floor(total / 100).toLocaleString('en-GB'), pence = String(total % 100).padStart(2, '0');
   const rel = shortDateNoDay(sum.releaseDate);
-  return `<section class="balance" aria-label="Indicative payment this month">
-    <div class="lbl">Indicative payment · ${esc(fmtD(sum.ym + '-01', { month: 'long' }))}</div>
+  const month = esc(fmtD(sum.ym + '-01', { month: 'long' }));
+  return `<section class="balance ${proj ? 'proj' : ''}" aria-label="Indicative payment this month">
+    <div class="lbl">${proj ? `If you attend every remaining college day · ${month}` : `Indicative payment · ${month}`}</div>
     <div class="amt num" id="bal-amt" data-v="${total}">£${pounds}<span class="pence">.${pence}</span></div>
+    ${proj ? `<div class="proj-line num"><span>${money(already)} so far</span><span class="plus">+ ${money(extra)}</span><span class="muted-on-navy">for ${sum.best.days} college day${sum.best.days === 1 ? '' : 's'} to go</span></div>` : ''}
     <div class="row">
       <div><span>Tasks earned</span><strong class="num">${money(sum.earned)}</strong></div>
-      <div><span>${sum.released ? 'Bonus · released ' + esc(rel) : 'Bonus · released ' + esc(rel)}</span><strong class="num">${money(sum.bonus)}</strong></div>
+      <div><span>Bonus · released ${esc(rel)}</span><strong class="num">${money(sum.bonus)}</strong></div>
     </div>
     <div class="row" style="margin-top:12px">
       <div><span>Paid this month</span><strong class="num">${money(L.paidThisMonth)}</strong></div>
@@ -327,7 +335,7 @@ function progressCard(sum, compact) {
   const rel = shortDateNoDay(sum.releaseDate);
   const b = sum.best;
   const canBest = !sum.released && b && b.days > 0 && sum.planned > 0;
-  const showBest = canBest && app.bestCase;
+  const showBest = bestCaseOn(sum);
   const collegeV = T('college').valuePence;
   const strip = C.LADDER.map((l) => {
     const cur = sum.level && sum.level.key === l.key;

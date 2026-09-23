@@ -316,3 +316,8 @@ a.btn{text-decoration:none;color:inherit}
 .calc-link:hover{border-color:var(--ink-3)}
 .calc-link span{flex:1;font-weight:600;font-size:14px;display:flex;flex-direction:column}
 .calc-link small{font-weight:400;font-size:12.5px;color:var(--ink-2)}
+
+/* best-case projection on the balance card */
+.balance.proj{box-shadow:inset 0 0 0 2px var(--green-on-navy)}
+.proj-line{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;font-size:13px;margin:-8px 0 12px;color:var(--navy-soft)}
+.proj-line .plus{color:var(--green-on-navy);font-weight:700}
