@@ -18,7 +18,7 @@
 .chead h1{margin:0;font-size:24px;letter-spacing:-.01em}
 .chead p{margin:4px 0 0;color:var(--ink-2);max-width:56ch}
 .layout{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:16px;align-items:start}
-@media (max-width:760px){.layout{grid-template-columns:1fr}.result{position:static!important;order:-1}}
+@media (max-width:760px){.layout{grid-template-columns:1fr}.result{position:static!important}}
 .result{position:sticky;top:calc(12px + env(safe-area-inset-top,0px))}
 .presets{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
 .sl{padding:14px 0}
@@ -46,13 +46,13 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
 .stack-bar i{display:block;height:100%}
 .hint{font-size:13.5px;margin:0}
 .hint + .hint{margin-top:8px}
-.minibar{display:none}
-@media (max-width:760px){
-  .minibar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:20;justify-content:space-between;align-items:center;gap:10px;background:var(--navy);color:var(--navy-ink);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));font-variant-numeric:tabular-nums}
-  .minibar strong{font-size:20px}
-  .minibar span{font-size:12.5px;color:var(--navy-soft)}
-  .calc{padding-bottom:90px}
-}
+.minibar{position:fixed;left:0;right:0;bottom:0;z-index:20;background:var(--navy);color:var(--navy-ink);padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgba(10,16,30,.18)}
+.mb-in{max-width:960px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.mb-lbl{display:flex;flex-direction:column;font-size:14px;font-weight:600}
+.mb-lbl small{font-size:12.5px;font-weight:400;color:var(--navy-soft);margin-top:2px}
+#total{font-size:40px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1}
+.calc{padding-bottom:120px}
+@media (max-width:420px){#total{font-size:34px}}
 </style>
 </head>
 <body>
@@ -62,7 +62,7 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
       <h1>Earnings calculator</h1>
       <p>Move the sliders to see what a month could earn for <span>LieLie</span>, using the app's current values and attendance bonus.</p>
     </div>
-    <div class="btnrow"><a class="btn" href="/" id="back">‹ Back</a><a class="btn" href="/examples">Example months</a></div>
+    <div class="btnrow"><a class="btn" href="/" id="back">‹ Back</a></div>
   </header>
 
   <div class="layout">
@@ -78,13 +78,7 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
     </section>
 
     <aside class="result" aria-live="polite">
-      <section class="balance">
-        <div class="lbl">This month would earn</div>
-        <div class="amt num" id="total">£0<span class="pence">.00</span></div>
-        <div class="stack-bar" id="sbar" aria-hidden="true"></div>
-        <div class="brk" id="brk"></div>
-      </section>
-      <section class="card" style="margin-top:14px">
+      <section class="card">
         <div class="prog-top"><h3>Attendance bonus</h3><span class="pct num" id="bonusbig">£0</span></div>
         <div class="note" style="margin-top:2px" id="missedline"></div>
         <div class="lvls" id="lvls"></div>
@@ -94,7 +88,7 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
     </aside>
   </div>
 </div>
-<div class="minibar" aria-hidden="true"><span>This month</span><strong id="mini-total">£0</strong><span id="mini-bonus"></span></div>
+<div class="minibar" role="status" aria-live="polite"><div class="mb-in"><span class="mb-lbl">This month would earn<small id="mini-bonus"></small></span><strong id="total" class="num">£0.00</strong></div></div>
 
 <script src="/calc.js"></script>
 <script>
@@ -161,17 +155,9 @@ input[type=range]{width:100%;accent-color:var(--navy);height:28px;margin:0;curso
     const total = tasks + bonus;
     const best = st.days * T.morning.valuePence + st.planned * T.college.valuePence + 4 * (T.room.valuePence + T.meal.valuePence + T.bath.valuePence) + C.LADDER[0].bonusPence;
 
-    const t = document.getElementById('total');
-    t.innerHTML = `£${Math.floor(total / 100)}<span class="pence">.${String(total % 100).padStart(2, '0')}</span>`;
-    const colors = { morning: '#86DDAA', college: '#5FC48F', room: '#3FA774', meal: '#2F8A5E', bath: '#236E4A' };
-    document.getElementById('sbar').innerHTML = parts.map((x) => `<i style="width:${(x.p / best) * 100}%;background:${colors[x.k]}"></i>`).join('') + `<i style="width:${(bonus / best) * 100}%;background:#E9A553"></i>`;
-    document.getElementById('brk').innerHTML = parts.map((x) => `<div><span>${x.label}</span><strong>${money(x.p)}</strong></div>`).join('')
-      + `<div><span>Attendance bonus (paid on the 1st)</span><strong>${money(bonus)}</strong></div>`
-      + `<div><span>Best possible this month</span><strong>${money(best)} · ${Math.round((total / best) * 100)}%</strong></div>`;
-
+    document.getElementById('total').textContent = money(total);
     document.getElementById('bonusbig').textContent = short(bonus);
-    document.getElementById('mini-total').textContent = money(total);
-    document.getElementById('mini-bonus').textContent = `incl. ${short(bonus)} bonus`;
+    document.getElementById('mini-bonus').textContent = `Tasks ${money(tasks)} + ${short(bonus)} bonus · best possible ${money(best)}`;
     document.getElementById('missedline').textContent = `${st.college} of ${st.planned} college days attended · ${missed} missed`;
     document.getElementById('lvls').innerHTML = C.LADDER.map((l) => {
       const cur = lvl && lvl.key === l.key, gone = lvl ? l.maxMissed < missed : true;
