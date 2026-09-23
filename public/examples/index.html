@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Twenty monthly earning scenarios, from nothing done to a perfect month">
+<meta name="theme-color" content="#15244A">
+<title>Earned · Scenarios</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2315244A'/%3E%3Cpath d='M10 17l4 4 8-9' fill='none' stroke='%2386DDAA' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="/app.css">
+<style>
+.wide{max-width:1120px;margin:0 auto;padding-inline:16px;padding-block:20px 48px}
+.xhead{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:12px;margin-bottom:18px}
+.xhead h1{margin:0;font-size:24px;letter-spacing:-.01em}
+.xhead p{margin:4px 0 0;color:var(--ink-2);max-width:60ch}
+.xlinks{display:flex;gap:8px;flex-wrap:wrap}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-bottom:14px}
+.kv{width:100%;border-collapse:collapse;font-size:13.5px}
+.kv th{text-align:left;font-weight:600;color:var(--ink-2);font-size:12px;padding:0 0 6px}
+.kv td{padding:7px 0;border-top:1px solid var(--line)}
+.kv td.n,.kv th.n{text-align:right}
+.big{font-size:32px;font-weight:600;letter-spacing:-.02em;margin:6px 0 4px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+table.sc{border-collapse:separate;border-spacing:0;width:100%;min-width:1040px;font-size:13px}
+.sc th{position:sticky;top:0;background:var(--navy);color:var(--navy-ink);font-weight:600;font-size:12px;text-align:center;padding:9px 8px;line-height:1.25;vertical-align:bottom}
+.sc th.l{text-align:left}
+.sc td{padding:6px 8px;border-top:1px solid var(--line);text-align:right;white-space:nowrap}
+.sc td.l{text-align:left;white-space:normal}
+.sc td.desc{color:var(--ink-2);min-width:220px;max-width:300px}
+.sc tbody tr:nth-child(even) td{background:var(--surface-2)}
+.sc td.sticky,.sc th.sticky{position:sticky;left:0;z-index:1}
+.sc td.sticky{background:var(--surface);font-weight:600}
+.sc tbody tr:nth-child(even) td.sticky{background:var(--surface-2)}
+.sc th.sticky{z-index:2}
+.sc .grp{background:var(--surface-2);color:var(--ink-2);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding:6px 8px;position:static}
+.sc input{width:48px;text-align:center;border:1px solid var(--line);border-radius:5px;padding:4px 2px;background:var(--surface);color:var(--focus);font-weight:600;font-variant-numeric:tabular-nums}
+.sc input:focus{outline:2px solid var(--focus);outline-offset:0}
+.sc input.bad{border-color:var(--amber);background:var(--amber-soft)}
+.sc td.tot{font-weight:700}
+.sc tfoot td{font-weight:600;background:var(--surface-2);border-top:2px solid var(--line)}
+.lvlchip{display:inline-block;min-width:38px;text-align:center;border-radius:999px;padding:2px 7px;font-size:12px;font-weight:600;background:var(--surface-2);color:var(--ink-3)}
+.lvlchip.on{background:var(--amber-soft);color:var(--amber)}
+.chart{display:flex;flex-direction:column;gap:5px;margin-top:10px}
+.crow{display:grid;grid-template-columns:150px 1fr 70px;gap:10px;align-items:center;font-size:12.5px}
+.crow .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-2)}
+.crow .track{height:16px;background:var(--surface-2);border-radius:4px;overflow:hidden;display:flex}
+.crow .t{background:var(--green);height:100%}
+.crow .b{background:var(--amber);height:100%;opacity:.85}
+.crow .v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.legend2{display:flex;gap:14px;font-size:12px;color:var(--ink-2);margin-top:8px}
+.legend2 i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.notes{font-size:13px;color:var(--ink-2);line-height:1.6;max-width:75ch}
+.notes li{margin:3px 0}
+.tbar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:22px 0 8px}
+.tbar h2{margin:0;font-size:16px}
+@media (max-width:560px){.crow{grid-template-columns:96px 1fr 58px}.xhead h1{font-size:21px}}
+</style>
+</head>
+<body>
+<div class="wide">
+  <header class="xhead">
+    <div>
+      <h1>Monthly earning scenarios</h1>
+      <p>Twenty example months for <span id="name">LieLie</span>, from nothing done to perfect, using the app's current rules. Change any blue number to see the month recalculate.</p>
+    </div>
+    <div class="xlinks">
+      <a class="btn" href="/examples/LieLie_earnings_scenarios.xlsx">Download spreadsheet</a>
+      <a class="btn" href="/demo">Open the demo</a>
+    </div>
+  </header>
+
+  <div class="grid3">
+    <section class="card">
+      <h3 style="margin:0 0 10px;font-size:15px">Task values</h3>
+      <table class="kv" id="tasks"><thead><tr><th>Task</th><th class="n">Each</th><th class="n">Max / month</th><th class="n">Max £</th></tr></thead><tbody></tbody></table>
+    </section>
+    <section class="card">
+      <h3 style="margin:0 0 10px;font-size:15px">Attendance bonus</h3>
+      <table class="kv" id="ladder"><thead><tr><th>College days missed</th><th class="n">Bonus</th></tr></thead><tbody></tbody></table>
+      <p class="note" style="margin:8px 0 0">Excused days never count as missed. The bonus is paid on the 1st of the next month.</p>
+    </section>
+    <section class="card">
+      <h3 style="margin:0;font-size:15px">Best possible month</h3>
+      <div class="big num" id="max">£0</div>
+      <p class="note" style="margin:0">All tasks in a 31-day month with 16 college days and no days missed. Average across the 20 scenarios: <strong class="num" id="avg">£0</strong>.</p>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="prog-top"><h3>Month total by scenario</h3><button class="linkbtn" type="button" id="reset">Reset examples</button></div>
+    <div class="chart" id="chart" role="img" aria-label="Bar chart of month totals by scenario"></div>
+    <div class="legend2"><span><i style="background:var(--green)"></i>Task earnings</span><span><i style="background:var(--amber)"></i>Attendance bonus</span></div>
+  </section>
+
+  <div class="tbar"><h2>Scenarios</h2><span class="small muted">Sorted from lowest to highest when the page loads</span></div>
+  <div class="tablewrap">
+    <table class="sc" id="sc">
+      <thead>
+        <tr>
+          <th class="sticky l">Scenario</th><th class="l">What happened</th>
+          <th>Medication<br>days</th><th>College<br>days</th><th>Tidy room<br>weeks</th><th>Meals<br>weeks</th><th>Bathroom<br>weeks</th>
+          <th>Task<br>earnings</th><th>Days<br>missed</th><th>Bonus</th><th>Month<br>total</th><th>% of<br>best</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot></tfoot>
+    </table>
+  </div>
+
+  <section style="margin-top:22px">
+    <h2 style="font-size:16px;margin:0 0 6px">How it's calculated</h2>
+    <ul class="notes">
+      <li>Every completed task adds its value. Missed tasks add £0 and never remove earlier earnings.</li>
+      <li>The attendance bonus depends only on college days missed: every two missed days drops one level. Seven or more missed means no bonus.</li>
+      <li>Weekly tasks can be done once per Monday–Sunday week, up to 4 times a month.</li>
+      <li>The examples assume a 31-day month, 16 college days and no excused days.</li>
+    </ul>
+  </section>
+</div>
+
+<script src="/calc.js"></script>
+<script>
+(function () {
+  const C = window.Calc;
+  const MONTH_DAYS = 31, COLLEGE_DAYS = 16;
+  const T = C.DEFAULT_TASKS;
+  const COLS = [
+    { id: 'morning', max: MONTH_DAYS }, { id: 'college', max: COLLEGE_DAYS },
+    { id: 'room', max: 4 }, { id: 'meal', max: 4 }, { id: 'bath', max: 4 },
+  ];
+  const BASE = [
+    ['Nothing done', 'No tasks completed all month.', 0, 0, 0, 0, 0],
+    ['Very poor', 'A few mornings, rarely at college.', 5, 2, 0, 0, 0],
+    ['Very poor', 'Occasional mornings, one chore.', 8, 4, 1, 0, 0],
+    ['Poor', 'About a third of mornings.', 10, 5, 1, 1, 0],
+    ['Poor', 'Patchy routine, one of each chore.', 12, 6, 1, 1, 1],
+    ['Poor', 'Under half of mornings and college.', 14, 7, 2, 1, 1],
+    ['Below average', 'Half of college days, some chores.', 16, 8, 2, 2, 1],
+    ['Below average', '7 college days missed, one too many for the £10 bonus.', 18, 9, 2, 2, 2],
+    ['Fair', 'Two-thirds of mornings; 6 college days missed: £10 bonus.', 20, 10, 3, 2, 2],
+    ['Fair', '5 college days missed: £10 bonus.', 22, 11, 3, 3, 2],
+    ['Chores only', 'All weekly chores, most mornings, but no college.', 25, 0, 4, 4, 4],
+    ['Solid', '4 college days missed: £20 bonus.', 22, 12, 3, 3, 2],
+    ['Good', 'Most mornings, 4 missed, three of each chore.', 24, 12, 3, 3, 3],
+    ['College only', 'Every college day but nothing else: £50 bonus.', 0, 16, 0, 0, 0],
+    ['Good', '3 college days missed: £20 bonus.', 25, 13, 3, 3, 3],
+    ['Very good', '2 college days missed: £30 bonus.', 26, 14, 4, 3, 3],
+    ['Very good', '1 college day missed, nearly all chores: £30 bonus.', 28, 15, 4, 4, 3],
+    ['Excellent', 'All chores, 1 college day missed.', 29, 15, 4, 4, 4],
+    ['Near perfect', 'Everything except one college day: £30 bonus.', 31, 15, 4, 4, 4],
+    ['Perfect', 'Every task, every day. No college days missed: £50 bonus.', 31, 16, 4, 4, 4],
+  ];
+  const money = (p) => '£' + (p / 100).toFixed(2).replace(/\.00$/, '');
+  const money2 = (p) => '£' + (p / 100).toFixed(2);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  function calc(r) {
+    const counts = r.slice(2, 7);
+    const tasks = counts.reduce((s, n, i) => s + n * T[COLS[i].id].valuePence, 0);
+    const missed = COLLEGE_DAYS - counts[1];
+    const bonus = C.bonusForMissed(missed);
+    return { tasks, missed, bonus, total: tasks + bonus };
+  }
+  const best = calc(['', '', MONTH_DAYS, COLLEGE_DAYS, 4, 4, 4]).total;
+  let rows;
+  function reset() { rows = BASE.map((r) => r.slice()).sort((a, b) => calc(a).total - calc(b).total); }
+  reset();
+
+  // static assumption tables
+  document.querySelector('#tasks tbody').innerHTML = COLS.map((c) => `<tr><td>${esc(T[c.id].label)}</td><td class="n num">${money2(T[c.id].valuePence)}</td><td class="n num">${c.max}</td><td class="n num">${money2(T[c.id].valuePence * c.max)}</td></tr>`).join('')
+    + `<tr><td><strong>Task earnings maximum</strong></td><td></td><td></td><td class="n num"><strong>${money2(COLS.reduce((s, c) => s + T[c.id].valuePence * c.max, 0))}</strong></td></tr>`;
+  document.querySelector('#ladder tbody').innerHTML = C.LADDER.map((l) => `<tr><td>${esc(l.label)}</td><td class="n num">${money2(l.bonusPence)}</td></tr>`).join('')
+    + `<tr><td>7 or more days missed</td><td class="n num">£0.00</td></tr>`;
+  document.getElementById('max').textContent = money2(best);
+
+  function renderTable() {
+    const tb = document.querySelector('#sc tbody');
+    tb.innerHTML = rows.map((r, i) => {
+      const k = calc(r);
+      const lvl = C.levelFor(k.missed);
+      return `<tr data-i="${i}">
+        <td class="sticky l">${esc(r[0])}</td><td class="l desc">${esc(r[1])}</td>
+        ${COLS.map((c, j) => `<td><input type="number" inputmode="numeric" min="0" max="${c.max}" step="1" value="${r[2 + j]}" data-i="${i}" data-j="${j}" id="in-${i}-${j}" aria-label="${esc(r[0])}: ${esc(T[c.id].label)} (0 to ${c.max})"></td>`).join('')}
+        <td class="num" data-k="tasks">${money2(k.tasks)}</td>
+        <td class="num" data-k="missed">${k.missed}</td>
+        <td data-k="bonus"><span class="lvlchip ${k.bonus ? 'on' : ''}">${k.bonus ? money(k.bonus) : '–'}</span></td>
+        <td class="num tot" data-k="total">${money2(k.total)}</td>
+        <td class="num" data-k="pct">${Math.round((k.total / best) * 100)}%</td>
+      </tr>`;
+    }).join('');
+    renderSummary();
+  }
+  function updateRow(i) {
+    const tr = document.querySelector(`#sc tbody tr[data-i="${i}"]`);
+    const k = calc(rows[i]);
+    tr.querySelector('[data-k="tasks"]').textContent = money2(k.tasks);
+    tr.querySelector('[data-k="missed"]').textContent = k.missed;
+    tr.querySelector('[data-k="bonus"]').innerHTML = `<span class="lvlchip ${k.bonus ? 'on' : ''}">${k.bonus ? money(k.bonus) : '–'}</span>`;
+    tr.querySelector('[data-k="total"]').textContent = money2(k.total);
+    tr.querySelector('[data-k="pct"]').textContent = Math.round((k.total / best) * 100) + '%';
+    renderSummary();
+  }
+  function renderSummary() {
+    const ks = rows.map(calc);
+    const avg = ks.reduce((s, k) => s + k.total, 0) / ks.length;
+    document.getElementById('avg').textContent = money2(Math.round(avg));
+    document.querySelector('#sc tfoot').innerHTML = `<tr><td class="sticky l">Average</td><td></td><td colspan="5"></td>
+      <td class="num">${money2(Math.round(ks.reduce((s, k) => s + k.tasks, 0) / ks.length))}</td><td></td>
+      <td class="num">${money2(Math.round(ks.reduce((s, k) => s + k.bonus, 0) / ks.length))}</td>
+      <td class="num tot">${money2(Math.round(avg))}</td><td class="num">${Math.round((avg / best) * 100)}%</td></tr>`;
+    document.getElementById('chart').innerHTML = rows.map((r, i) => {
+      const k = ks[i];
+      return `<div class="crow" title="${esc(r[0])}: tasks ${money2(k.tasks)} + bonus ${money2(k.bonus)}"><span class="nm">${esc(r[0])}</span>
+        <span class="track"><span class="t" style="width:${(k.tasks / best) * 100}%"></span><span class="b" style="width:${(k.bonus / best) * 100}%"></span></span>
+        <span class="v">${money(k.total)}</span></div>`;
+    }).join('');
+  }
+  document.getElementById('sc').addEventListener('input', (e) => {
+    const inp = e.target; if (inp.tagName !== 'INPUT') return;
+    const i = +inp.dataset.i, j = +inp.dataset.j, max = COLS[j].max;
+    let v = Math.floor(Number(inp.value));
+    const ok = inp.value !== '' && Number.isFinite(v) && v >= 0 && v <= max;
+    inp.classList.toggle('bad', !ok);
+    if (!ok) return;
+    rows[i][2 + j] = v; updateRow(i);
+  });
+  document.getElementById('reset').addEventListener('click', () => { reset(); renderTable(); });
+  renderTable();
+})();
+</script>
+</body>
+</html>

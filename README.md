@@ -7,6 +7,7 @@ parent portal and a read-only progress view for LieLie.
 | --- | --- | --- |
 | `/` | LieLie (public link) | Read-only: balance, monthly progress, today's tasks, activity, calendar, bonus ladder. Refreshes every minute. No notes, correction reasons or history are sent to this page. |
 | `/demo` | Anyone | The whole app with sample data, switchable between the parent and LieLie views. Nothing is saved. |
+| `/examples` | Anyone | 20 example months from nothing done to perfect, editable like a spreadsheet, plus the .xlsx download. |
 | `/parent` | Parent (password) | Tick off tasks, correct or excuse days, choose college days, record payments, close months, change values, export/import/erase. |
 
 The parent password is **`Vermont2527`**. It is checked on the server, so it

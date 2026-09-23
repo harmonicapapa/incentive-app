@@ -22,7 +22,7 @@ const routes = {
   '/api/state': (await import('../netlify/functions/state.mjs')).default,
   '/api/public': (await import('../netlify/functions/public.mjs')).default,
 };
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
 const port = Number(process.env.PORT || 8888);
 
 http.createServer(async (req, res) => {
@@ -36,7 +36,7 @@ http.createServer(async (req, res) => {
     res.end(Buffer.from(await response.arrayBuffer()));
     return;
   }
-  let path = url.pathname === '/' ? '/index.html' : url.pathname === '/parent' ? '/parent.html' : url.pathname === '/demo' ? '/demo.html' : url.pathname;
+  let path = url.pathname === '/' ? '/index.html' : url.pathname === '/parent' ? '/parent.html' : url.pathname === '/demo' ? '/demo.html' : (url.pathname === '/examples' || url.pathname === '/examples/') ? '/examples/index.html' : url.pathname;
   const file = normalize(join(root, 'public', path));
   if (!file.startsWith(join(root, 'public'))) { res.writeHead(403); return res.end(); }
   try { const body = await readFile(file); res.writeHead(200, { 'content-type': types[extname(file)] || 'application/octet-stream' }); res.end(body); }
