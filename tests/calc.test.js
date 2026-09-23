@@ -28,7 +28,7 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
   cd.slice(0, 8).forEach((d, i) => { if (i !== 2 && i !== 5) done(S, 'college', d); });
   const today = C.addDays(cd[7], 1); // day after the 8th college day
   let s = C.monthSummary(S, '2026-10', today); eq('asat counted', s.counted, 8); eq('asat attended', s.attended, 6); eq('asat pct', s.ratePct, 75); eq('asat bonus', s.bonus, 2000); eq('asat not released', s.released, false);
-  eq('asat next 80', s.next && s.next.key, 80); eq('asat next days', s.next && s.next.days, 2); // (6+2)/(8+2) = 80%
+  eq('asat next 85', s.next && s.next.key, 85); eq('asat next days', s.next && s.next.days, 6); // (6+6)/(8+6) = 85.7%
   eq('bonus not in ledger yet', C.ledger(S, today).bonuses, 0);
   eq('released 1st next month', C.monthSummary(S, '2026-10', '2026-11-01').released, true);
   // after month end, the unattended remaining days count as not attended
@@ -39,17 +39,22 @@ for (const [ym, want] of [['2026-10', 27300], ['2026-11', 27000], ['2028-02', 26
   C.monthDates('2026-10').slice(0, 10).forEach(d => done(S, 'morning', d));
   const s = C.monthSummary(S, '2026-10', cd[3]); eq('today unmarked excluded', s.counted, 3); eq('100% so far', s.ratePct, 100); eq('100% bonus indicative', s.bonus, 5000);
 }
-// Exactly 70% and 80% (college days to date)
-{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 7).forEach(d => done(S, 'college', d)); const today = C.addDays(cd[9], 1);
+// Exactly 70%, 85% and 95% (20 college days to date)
+{ const S = mk(); const cd = C.monthDates('2026-10').filter(d => C.weekday(d) <= 5).slice(0, 20); S.months['2026-10'] = { collegeDates: cd }; const today = C.addDays(cd[19], 1);
+  cd.slice(0, 14).forEach(d => done(S, 'college', d));
   let s = C.monthSummary(S, '2026-10', today); eq('70 exact', s.ratePct, 70); eq('70 only 20', s.bonus, 2000);
-  done(S, 'college', cd[7]); s = C.monthSummary(S, '2026-10', today); eq('80 exact', s.ratePct, 80); eq('80 only 30', s.bonus, 3000);
-  exc(S, 'college', cd[8]); exc(S, 'college', cd[9]); s = C.monthSummary(S, '2026-10', today); eq('excused excluded -> 100', s.ratePct, 100); eq('100 only 50', s.bonus, 5000);
+  cd.slice(14, 16).forEach(d => done(S, 'college', d)); s = C.monthSummary(S, '2026-10', today); eq('80 now only 20', s.bonus, 2000);
+  done(S, 'college', cd[16]); s = C.monthSummary(S, '2026-10', today); eq('85 exact', s.ratePct, 85); eq('85 only 30', s.bonus, 3000);
+  done(S, 'college', cd[17]); s = C.monthSummary(S, '2026-10', today); eq('90 still 30', s.bonus, 3000);
+  done(S, 'college', cd[18]); s = C.monthSummary(S, '2026-10', today); eq('95 exact', s.ratePct, 95); eq('95 only 50', s.bonus, 5000);
 }
+// 16-day month: 15 of 16 (93.75%) is £30; all 16 needed for £50
+{ const S = mk(); const cd = college16(S, '2026-10'); cd.slice(0, 15).forEach(d => done(S, 'college', d)); const s = C.monthSummary(S, '2026-10', '2026-11-01'); eq('15 of 16', s.bonus, 3000); }
 // No college days yet -> 0, no bonus
 { const S = mk(); college16(S, '2026-10'); const s = C.monthSummary(S, '2026-10', '2026-10-01'); eq('none yet', s.counted, 0); eq('none bonus', s.bonus, 0); eq('none next', s.next, null); }
 eq('bonusFor below', C.bonusFor(6999, 10000), 0);
 eq('bonusFor 70', C.bonusFor(7000, 10000), 2000);
-eq('bonusFor 99.99', C.bonusFor(9999, 10000), 3000);
+eq('bonusFor 84.99', C.bonusFor(8499, 10000), 2000); eq('bonusFor 85', C.bonusFor(8500, 10000), 3000); eq('bonusFor 94.99', C.bonusFor(9499, 10000), 3000); eq('bonusFor 95', C.bonusFor(9500, 10000), 5000);
 eq('bonusFor 100', C.bonusFor(10000, 10000), 5000);
 eq('bonusFor 0 possible', C.bonusFor(0, 0), 0);
 // Excusals remove from denominator

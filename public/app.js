@@ -274,7 +274,7 @@ function renderWelcome() {
   return `<div class="shell"><div class="welcome">
     <div class="mark">${icon('banknote', 'lg')}</div>
     <h1>Set up the ledger</h1>
-    <p>Completed tasks add to a monthly balance, with a bonus at 70%, 80% and 100% of what's possible. Start fresh to begin from today, then choose this month's college days.</p>
+    <p>Completed tasks add to a monthly balance, with a bonus at 70%, 85% and 95% college attendance. Start fresh to begin from today, then choose this month's college days.</p>
     <div class="stack" style="max-width:360px">
       <button class="btn primary block" type="button" data-act="start" id="w-start">Start fresh</button>
       <a class="btn block" href="/demo" id="w-demo">Try demo mode</a>
@@ -341,7 +341,7 @@ function progressCard(sum, compact) {
   return `<section class="card" aria-label="Monthly progress">
     <div class="prog-top"><h3>College attendance${sum.bonus && !sum.released ? ' <span class="pill neutral">indicative</span>' : ''}</h3><span class="pct num">${sum.counted ? sum.ratePct.toFixed(1) + '%' : '–'}</span></div>
     <div class="note" style="margin-top:2px">${sum.counted ? `${sum.attended} of ${sum.counted} college days so far` : 'No college days so far'}${sum.remainingDays ? ` · ${sum.remainingDays} to go` : ''}</div>
-    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of college days attended so far. Bonus markers at 70, 80 and 100 percent."><div class="fill" style="width:${pct}%"></div>${markers}</div>
+    <div class="bar" role="img" aria-label="${sum.ratePct.toFixed(1)} percent of college days attended so far. Bonus markers at ${C.LADDER.map((l) => l.key).join(', ')} percent."><div class="fill" style="width:${pct}%"></div>${markers}</div>
     <div class="prog-note">${note}</div>
     ${compact ? '' : `<div class="note" style="margin-top:8px">Bonus levels use college attendance only. Other tasks add to the balance but don't change the percentage.</div>`}
   </section>`;
@@ -544,7 +544,8 @@ function renderPlan(t) {
   const rung = (l) => {
     const on = sum.unlocked.includes(l.key);
     const lower = C.LADDER.filter((x) => x.key < l.key);
-    const range = l.key === 100 ? '100%' : `${l.key}% to ${C.LADDER[C.LADDER.indexOf(l) + 1].key - 0.01}%`;
+    const nxt = C.LADDER[C.LADDER.indexOf(l) + 1];
+    const range = nxt ? `${l.key}% to ${(nxt.key - 0.01).toFixed(2)}%` : `${l.key}% and above`;
     void lower;
     return `<div class="rung ${on ? 'on' : ''}">${icon(on ? 'unlock' : 'lock')}<div class="body"><div><strong>${range}</strong></div><div class="small muted">${on ? (sum.bonus === l.bonusPence ? (sum.released ? 'Released ' + shortDateNoDay(sum.releaseDate) : 'On track · paid ' + shortDateNoDay(sum.releaseDate)) : 'Passed') : 'Locked'}</div></div><strong class="num">${moneyShort(l.bonusPence)}</strong></div>`;
   };

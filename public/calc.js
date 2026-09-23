@@ -13,8 +13,8 @@
   };
   const LADDER = [
     { key: 70, num: 7, den: 10, bonusPence: 2000 },
-    { key: 80, num: 8, den: 10, bonusPence: 3000 },
-    { key: 100, num: 1, den: 1, bonusPence: 5000 },
+    { key: 85, num: 17, den: 20, bonusPence: 3000 },
+    { key: 95, num: 19, den: 20, bonusPence: 5000 },
   ];
 
   // ---------- dates (household dates are YYYY-MM-DD strings in Europe/London) ----------
