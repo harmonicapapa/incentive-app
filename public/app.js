@@ -70,7 +70,7 @@ const app = {
   loaded: { settings: false },
   tab: 'home', parent: ROLE === 'parent', planMonth: null, actMonth: 'all', actCat: 'all',
   readOnly: ROLE !== 'parent', loginError: '', busy: false,
-  pending: new Set(), shownEarned: null, lastDay: today(),
+  pending: new Set(), shownEarned: null, lastDay: today(), homeDate: null,
 };
 const T = (id) => C.DEFAULT_TASKS[id] && Object.assign({}, C.DEFAULT_TASKS[id], (app.S.settings && app.S.settings.tasks && app.S.settings.tasks[id]) || {});
 const isLive = () => app.mode === 'live';
@@ -189,18 +189,18 @@ function buildDemo() {
 }
 
 // ---------------- actions ----------------
-async function complete(taskId) {
+async function complete(taskId, date) {
   if (ROLE !== 'parent') return;
-  const t = today();
+  const t = date && date <= today() ? date : today();
   const id = C.occId(taskId, t);
-  if (app.pending.has(id) || !C.canComplete(app.S, taskId, t, t)) return;
+  if (app.pending.has(id) || !C.canComplete(app.S, taskId, t, today())) return;
   app.pending.add(id);
   const ts = nowISO();
   const v = T(taskId).valuePence;
   const o = { id, taskId, localDate: t, status: 'completed', valuePence: v, completedAt: ts, updatedAt: ts, by: 'parent' };
   try {
     await ops.setOcc(o);
-    toast(`${moneyShort(v)} added`, { undo: () => undoCompletion(o) });
+    toast(`${moneyShort(v)} added${t === today() ? '' : ' for ' + shortDate(t)}`, { undo: () => undoCompletion(o) });
   } catch (e) { /* server state reloaded */ }
   finally { app.pending.delete(id); }
 }
@@ -347,23 +347,29 @@ function progressCard(sum, compact) {
   </section>`;
 }
 
-function taskRow(item) {
+function taskRow(item, viewDate) {
   const d = T(item.taskId);
+  const past = viewDate && viewDate !== today();
   const done = item.status === 'completed';
   const quiet = item.status === 'excused' || item.status === 'capped';
   let sub = d.subtitle || '';
   if (item.weekly) {
-    sub = done ? `This week · ${item.doneThisMonth} of ${item.slots} this month` : item.status === 'capped' ? `${item.slots} of ${item.slots} done this month` : `Any day this week · ${item.doneThisMonth} of ${item.slots} this month`;
+    const wk = past && C.mondayOf(viewDate) !== C.mondayOf(today()) ? 'That week' : 'This week';
+    const done_ = done && app.S.occ[item.occId] && app.S.occ[item.occId].localDate !== viewDate && viewDate ? `Done ${shortDate(app.S.occ[item.occId].localDate)}` : wk;
+    sub = done ? `${done_} · ${item.doneThisMonth} of ${item.slots} this month` : item.status === 'capped' ? `${item.slots} of ${item.slots} done this month` : `Any day ${wk.toLowerCase()} · ${item.doneThisMonth} of ${item.slots} this month`;
   }
   if (item.status === 'excused') sub = 'Excused and not counted';
   let control;
   if (ROLE !== 'parent') control = done ? `<span class="cbtn on" role="img" aria-label="Done">${icon('check')}</span>` : quiet ? `<span class="tag">${item.status === 'capped' ? 'Complete' : 'Excused'}</span>` : `<span class="tag">To do</span>`;
   else if (done) control = `<button class="cbtn on" type="button" disabled aria-label="${esc(d.label)} completed" id="c-${item.taskId}">${icon('check')}</button>`;
   else if (quiet) control = `<span class="tag">${item.status === 'capped' ? 'Complete' : 'Excused'}</span>`;
-  else control = `<button class="cbtn" type="button" data-act="complete" data-task="${item.taskId}" id="c-${item.taskId}" aria-label="Mark ${esc(d.label)} complete, ${moneyShort(item.valuePence)}" title="Mark complete" ${app.readOnly || app.pending.has(item.occId) ? 'disabled' : ''}>${icon('check')}</button>`;
+  else {
+    const can = C.canComplete(app.S, item.taskId, item.weekly ? (viewDate || today()) : item.date, today());
+    control = `<button class="cbtn" type="button" data-act="complete" data-task="${item.taskId}" data-date="${viewDate || today()}" id="c-${item.taskId}" aria-label="Mark ${esc(d.label)} complete${past ? ' for ' + esc(shortDate(viewDate)) : ''}, ${moneyShort(item.valuePence)}" title="${can ? 'Mark complete' : 'This month is closed'}" ${app.readOnly || app.pending.has(item.occId) || !can ? 'disabled' : ''}>${icon('check')}</button>`;
+  }
   return `<div class="task ${done ? 'done' : ''} ${quiet ? 'quiet' : ''}">
     <div class="tico">${icon(item.taskId)}</div>
-    <div class="body"><div class="t">${esc(d.label)}</div><div class="s">${done ? 'Completed' + (sub ? ' · ' + esc(sub.replace(/^This week · /, '')) : '') : esc(sub)}</div></div>
+    <div class="body"><div class="t">${esc(d.label)}</div><div class="s">${done ? (item.weekly ? esc(sub) : 'Completed' + (sub ? ' · ' + esc(sub) : '')) : esc(sub)}</div></div>
     <span class="v num">${done ? '+' : ''}${moneyShort(item.valuePence)}</span>
     ${control}
   </div>`;
@@ -382,18 +388,27 @@ function renderHome(t) {
   const S = app.S, ym = C.monthOf(t);
   const sum = C.monthSummary(S, ym, t);
   const L = C.ledger(S, t);
-  const items = C.todayTasks(S, t);
+  const start = (S.settings && S.settings.startDate) || t;
+  const hd = ROLE === 'parent' && app.homeDate && app.homeDate < t && app.homeDate >= start ? app.homeDate : t;
+  const items = C.todayTasks(S, hd);
   const acts = C.activity(S).slice(0, 3);
   const fri = C.nextFriday(t);
   let todayHtml;
   if (!items.length) {
     const n = nextScheduled(t);
     todayHtml = `<div class="empty"><strong>Nothing scheduled right now</strong>${n ? 'Next task ' + esc(longDate(n)) : ''}</div>`;
-  } else todayHtml = `<div class="tasks">${items.map(taskRow).join('')}</div>`;
+  } else todayHtml = `<div class="tasks">${items.map((it) => taskRow(it, hd)).join('')}</div>`;
+  const dayLabel = hd === t ? 'Today' : hd === C.addDays(t, -1) ? 'Yesterday' : fmtD(hd, { weekday: 'long', day: 'numeric', month: 'short' });
+  const dayNav = ROLE === 'parent'
+    ? `<div class="daynav"><button class="iconbtn sm" type="button" data-act="home-day" data-d="-1" id="hd-prev" aria-label="Previous day" ${hd > start ? '' : 'disabled'}>${icon('left', 'sm')}</button>
+        <h2 aria-live="polite">${esc(dayLabel)}</h2>
+        <button class="iconbtn sm" type="button" data-act="home-day" data-d="1" id="hd-next" aria-label="Next day" ${hd < t ? '' : 'disabled'}>${icon('right', 'sm')}</button></div>
+       ${hd !== t ? `<span class="daylinks"><button class="linkbtn" type="button" data-act="home-day" data-d="0" id="hd-today">Today</button><button class="linkbtn" type="button" data-act="edit-day" data-date="${hd}" id="hd-edit">Edit day</button></span>` : ''}`
+    : `<h2>Today</h2>`;
   return `
     ${balanceCard(sum, L)}
     ${progressCard(sum, true)}
-    <div class="section-h"><h2>Today</h2></div>
+    <div class="section-h">${dayNav}</div>
     <section class="card" style="padding:0">${todayHtml}</section>
     <section class="card payout" aria-label="Next payment">
       <div class="tico">${icon('banknote')}</div>
@@ -875,7 +890,16 @@ function exitDemo() {
 document.addEventListener('click', async (e) => {
   const el = e.target.closest('[data-act]'); if (!el || !$('#app').contains(el)) return;
   const act = el.dataset.act;
-  if (act === 'complete') return complete(el.dataset.task);
+  if (act === 'complete') return complete(el.dataset.task, el.dataset.date);
+  if (act === 'home-day') {
+    const t = today(), start = (app.S.settings && app.S.settings.startDate) || t;
+    const cur = app.homeDate || t, dlt = Number(el.dataset.d);
+    let next = dlt === 0 ? t : C.addDays(cur, dlt);
+    if (next > t) next = t; if (next < start) next = start;
+    app.homeDate = next === t ? null : next; render();
+    const f = document.getElementById(dlt < 0 ? 'hd-prev' : dlt > 0 ? 'hd-next' : 'hd-prev'); if (f && !f.disabled) f.focus({ preventScroll: true });
+    return;
+  }
   if (act === 'tab') {
     app.tab = el.dataset.tab; if (app.tab === 'plan' && !app.planMonth) app.planMonth = C.monthOf(today());
     render();

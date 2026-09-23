@@ -270,3 +270,12 @@ button.day:hover{border-color:var(--ink-3)}
 .seg-sm button{border:0;background:transparent;padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--ink-2)}
 .seg-sm button[aria-pressed="true"]{background:var(--navy);color:var(--navy-ink)}
 a.btn{text-decoration:none;color:inherit}
+
+/* home day navigation */
+.daynav{display:flex;align-items:center;gap:8px;min-width:0}
+.daynav h2{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.daylinks{display:inline-flex;gap:12px;flex:none}
+.daynav h2{min-width:0}
+.iconbtn.sm{width:30px;height:30px}
+.iconbtn:disabled{opacity:.4;cursor:default}
+.section-h:has(.daynav){align-items:center}
